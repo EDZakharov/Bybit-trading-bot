@@ -50,7 +50,7 @@ import 'dotenv/config'
 //   throwOnFailedRateLimitParse?: boolean;
 // };
 
-export const restClient = new RestClientV5({
+const restClient = new RestClientV5({
 	testnet: false,
 	key: process.env.API_KEY,
 	secret: process.env.API_SECRET_KEY,
@@ -59,16 +59,4 @@ export const restClient = new RestClientV5({
 	baseUrl: 'https://api.bybit.com/',
 })
 
-restClient
-	.getAllCoinsBalance({
-		accountType: 'UNIFIED',
-	})
-	.then((response) => {
-		console.log(
-			response.result.balance.filter((el) => el.coin === 'BTC')[0]
-				?.walletBalance
-		)
-	})
-	.catch((error) => {
-		console.error(error)
-	})
+export default restClient
