@@ -1,6 +1,7 @@
-import restClient from '../restClient.js'
+import { symbolChecker } from '../Utils/symbolChecker.ts'
+import restClient from '../restClient.ts'
 
-export const getInstrumentInfo = async (symbol) => {
+export const getInstrumentInfo = async (symbol: string) => {
 	//symbol = coin -> for example BTCUSDT
 	let ok = symbolChecker(symbol)
 	if (!ok) {

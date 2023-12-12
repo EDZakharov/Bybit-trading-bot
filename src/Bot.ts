@@ -1,4 +1,4 @@
-import { getBalance } from './Account/getBalance.js'
-const test = await getBalance('KAS')
-
-console.log(test)
+import { placeOrder } from './Orders/placeOrder.ts'
+// const test = await getBalance('KAS')
+//TESTS
+placeOrder('Buy', 'KASUSDT', '29.63', '0.05')
