@@ -10,16 +10,13 @@ export const placeOrder = async (
 	qty: string,
 	price: string
 ) => {
-	let ok = symbolChecker(symbol)
-	if (!ok) {
+	if (!symbolChecker(symbol)) {
 		console.error(`request failed: undefined coin`)
 		return
 	}
 
 	try {
 		const instrumentInfo = await getInstrumentInfo(symbol)
-		console.log(instrumentInfo?.list[0])
-
 		const instrumentMinQty =
 			instrumentInfo && instrumentInfo.list[0]?.lotSizeFilter.minOrderQty
 		if (instrumentMinQty && instrumentMinQty <= qty) {
