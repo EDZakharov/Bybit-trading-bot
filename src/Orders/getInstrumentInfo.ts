@@ -1,5 +1,5 @@
-import { symbolChecker } from '../Utils/symbolChecker.ts'
-import restClient from '../restClient.ts'
+import { symbolChecker } from '../Utils/symbolChecker.js'
+import restClient from '../restClient.js'
 
 export const getInstrumentInfo = async (symbol: string) => {
 	//symbol = coin -> for example BTCUSDT
@@ -16,5 +16,6 @@ export const getInstrumentInfo = async (symbol: string) => {
 		return result
 	} catch (error) {
 		console.error('request failed: ', error)
+		return
 	}
 }

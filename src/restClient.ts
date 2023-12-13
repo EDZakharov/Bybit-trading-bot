@@ -46,7 +46,7 @@ import 'dotenv/config'
 /** throwOnFailedRateLimitParse?: boolean;
  * Default: false. Enable to throw error if rate limit parser fails */
 
-interface IrestClientOptions {
+interface IRestClientOptions {
 	key?: string
 	secret?: string
 	testnet?: boolean
@@ -55,10 +55,10 @@ interface IrestClientOptions {
 	baseUrl?: string
 }
 
-const restClientOptions: IrestClientOptions = {
+const restClientOptions: IRestClientOptions = {
 	testnet: false,
-	key: process.env.API_KEY,
-	secret: process.env.API_SECRET_KEY,
+	key: process.env['API_KEY'],
+	secret: process.env['API_SECRET_KEY'],
 	enable_time_sync: true,
 	recv_window: 5000,
 	baseUrl: 'https://api.bybit.com/',

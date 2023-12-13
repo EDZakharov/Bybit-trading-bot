@@ -3,7 +3,7 @@ import {
 	CategoryCursorListV5,
 	CategoryV5,
 } from 'bybit-api/lib/types/v5-shared.js'
-import restClient from '../restClient.ts'
+import restClient from '../restClient.js'
 
 export const getActiveOrders = async (
 	symbol?: string
@@ -13,10 +13,9 @@ export const getActiveOrders = async (
 			category: 'spot',
 			symbol,
 		})
-		console.log(result)
-
 		return result
 	} catch (error) {
 		console.error('request failed: ', error)
+		return
 	}
 }

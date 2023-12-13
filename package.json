@@ -1,18 +1,19 @@
 {
 	"type": "module",
 	"scripts": {
-		"dev": "tsx watch src/Bot.ts"
+		"dev": "tsx watch src/Bot.ts",
+		"b": "tsc"
 	},
 	"dependencies": {
 		"axios": "^1.6.2",
 		"bybit-api": "^3.7.8",
 		"ccxt": "^4.1.85",
-		"dotenv": "^16.3.1",
-		"nodemon": "^3.0.2"
+		"dotenv": "^16.3.1"
 	},
 	"devDependencies": {
 		"@types/node": "^20.10.4",
 		"tsx": "^4.6.2",
-		"typescript": "^5.3.3"
+		"typescript": "^5.3.3",
+		"nodemon": "^3.0.2"
 	}
 }

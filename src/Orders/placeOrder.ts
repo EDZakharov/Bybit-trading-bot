@@ -1,6 +1,6 @@
-import { symbolChecker } from '../Utils/symbolChecker.ts'
-import restClient from '../restClient.ts'
-import { getInstrumentInfo } from './getInstrumentInfo.ts'
+import { symbolChecker } from '../Utils/symbolChecker.js'
+import restClient from '../restClient.js'
+import { getMinQty } from './getMinQty.js'
 
 type sides = 'Buy' | 'Sell'
 
@@ -11,16 +11,15 @@ export const placeOrder = async (
 	price: string
 ) => {
 	if (!symbolChecker(symbol)) {
-		console.error(`request failed: undefined coin`)
+		console.error(`request failed: undefined coin - ${symbol}`)
 		return
 	}
 
 	try {
-		const instrumentInfo = await getInstrumentInfo(symbol)
-		const instrumentMinQty =
-			instrumentInfo && instrumentInfo.list[0]?.lotSizeFilter.minOrderQty
-		if (instrumentMinQty && instrumentMinQty <= qty) {
-			const buyOrderResult = await restClient.submitOrder({
+		const instrumentMinQty = await getMinQty(symbol)
+		if (instrumentMinQty && +instrumentMinQty <= +qty) {
+			// place order
+			const data = await restClient.submitOrder({
 				category: 'spot',
 				orderType: 'Limit',
 				side,
@@ -28,10 +27,12 @@ export const placeOrder = async (
 				qty,
 				price,
 			})
-			console.log(buyOrderResult)
+			console.dir(data)
+			// cancel order
+			// await cancelOrder(symbol, data.result.orderId)
 		} else {
 			!instrumentMinQty
-				? console.error(`request failed: undefined coin`)
+				? console.error(`request failed: undefined coin - ${symbol}`)
 				: console.error(
 						`request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
 				  )

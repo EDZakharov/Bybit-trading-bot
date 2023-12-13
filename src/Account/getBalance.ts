@@ -1,5 +1,5 @@
-import restClient from '../restClient.ts'
-import { symbolChecker } from '../Utils/symbolChecker.ts'
+import restClient from '../restClient.js'
+import { symbolChecker } from '../Utils/symbolChecker.js'
 
 interface IBalance {
 	coin: string
@@ -23,5 +23,6 @@ export const getBalance = async (
 		return result.balance
 	} catch (error) {
 		console.error('request failed: ', error)
+		return
 	}
 }

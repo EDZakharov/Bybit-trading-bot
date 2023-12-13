@@ -1,19 +1,19 @@
-import { OrderResultV5 } from 'bybit-api'
-import { symbolChecker } from '../Utils/symbolChecker.ts'
-import restClient from '../restClient.ts'
-import { getActiveOrders } from './getActiveOrders.ts'
+import { OrderResultV5 } from 'bybit-api/lib/types/response/v5-trade.js'
+import { symbolChecker } from '../Utils/symbolChecker.js'
+import restClient from '../restClient.js'
+import { getActiveOrders } from './getActiveOrders.js'
 
 export const cancelOrder = async (
 	symbol: string,
 	orderId: string
 ): Promise<OrderResultV5 | undefined> => {
 	if (!symbolChecker(symbol) || symbol.length === 0) {
-		console.error(`request failed: undefined coin ${symbol}`)
+		console.error(`request failed: undefined coin - ${symbol}`)
 		return
 	}
 
 	if (orderId.length === 0) {
-		console.error('request failed: wrong orderId length')
+		console.error(`request failed: wrong orderId length - ${orderId.length}`)
 		return
 	}
 
@@ -33,8 +33,11 @@ export const cancelOrder = async (
 			symbol,
 			orderId,
 		})
-		console.log(result)
+
+		console.dir(`${symbol} order with id ${result.orderId} was canceled`)
+		return result
 	} catch (error) {
 		console.error('request failed: something went wrong')
+		return
 	}
 }
