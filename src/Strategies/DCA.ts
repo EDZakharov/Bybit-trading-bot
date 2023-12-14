@@ -49,61 +49,86 @@
  *
  * */
 
-import { getInstrumentInfo } from '../Orders/getInstrumentInfo.js'
-import { getMinQty } from '../Orders/getMinQty.js'
+import { getMinQty } from '../Orders/getMinQty.js';
 
-interface IGridSteps {
-	calculatedGrid: Array<calculatedGrid>
-	setCalculatedStepsToGrid(): void
+interface IBuyOrdersStepsToGrid {
+    symbol?: string;
+    step: number;
+    orderDeviation: number;
+    orderVolume: number;
 }
 
-type props = {
-	symbol?: string
-	priceDeviation: number
-	stepsCount?: number
-}
+type botOptions = {
+    insuranceOrderSteps: number;
+    insuranceOrderPriceDeviation: number;
+    startOrderVolume: number;
+    insuranceOrderStepsMultiplier: number;
+    insuranceOrderVolume: number;
+    insuranceOrderVolumeMultiplier: number;
+};
 
-interface calculatedGrid extends props {
-	orderNumber: number
-}
+export const DCA = ({
+    insuranceOrderSteps,
+    insuranceOrderStepsMultiplier,
+    insuranceOrderPriceDeviation,
+    startOrderVolume,
+    insuranceOrderVolume,
+    insuranceOrderVolumeMultiplier,
+}: botOptions): Function => {
+    const buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
 
-export const DCA = async ({
-	symbol,
-	stepsCount,
-	priceDeviation,
-}: props): Promise<void> => {
-	const gridSteps: IGridSteps = {
-		calculatedGrid: [],
-		async setCalculatedStepsToGrid() {
-			if (!stepsCount || !symbol) {
-				console.error(`bad stepsCount or symbol`)
-				return
-			}
-			try {
-				const result = await getInstrumentInfo(symbol)
-				console.dir(result?.list)
+    return async function (
+        symbol: string
+    ): Promise<IBuyOrdersStepsToGrid[] | undefined> {
+        if (!insuranceOrderPriceDeviation) {
+            console.error(`request failed: undefined price deviation`);
+            return;
+        }
 
-				for (let i = 1; i <= stepsCount; i++) {
-					this.calculatedGrid.push({
-						orderNumber: i,
-						priceDeviation,
-					})
-				}
+        const minQty = await getMinQty(symbol);
 
-				const instrumentMinQty = await getMinQty(symbol)
+        if (!minQty) {
+            console.error(`request failed: bad minQty of ${symbol}`);
+            return;
+        }
 
-				if (!instrumentMinQty) {
-					console.error(`request failed: undefined coin - ${symbol}`)
-					return
-				}
+        if (startOrderVolume && startOrderVolume <= +minQty) {
+            console.dir(
+                `request failed: starting order ${startOrderVolume}, min qty ${minQty}`
+            );
+            return;
+        }
 
-				//TODO
-				// const intMinQty = +instrumentMinQty
-			} catch (error) {
-				console.error(`request failed: ${error}`)
-			}
-			console.dir(this.calculatedGrid)
-		},
-	}
-	gridSteps.setCalculatedStepsToGrid()
-}
+        let orderVolume = startOrderVolume;
+        let orderDeviation = 0;
+
+        // place step 0
+        buyOrdersStepsToGrid.push({
+            step: 0,
+            orderDeviation,
+            orderVolume,
+        });
+
+        for (let step = 1; step <= insuranceOrderSteps; step++) {
+            orderDeviation !== 0
+                ? (orderDeviation =
+                      insuranceOrderPriceDeviation +
+                      orderDeviation * insuranceOrderStepsMultiplier)
+                : (orderDeviation = insuranceOrderPriceDeviation);
+
+            //TODO:->
+            orderVolume !== startOrderVolume
+                ? (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
+                : insuranceOrderVolume;
+            //wrong!
+
+            buyOrdersStepsToGrid.push({
+                step,
+                orderDeviation: +orderDeviation.toFixed(8),
+                orderVolume: +orderVolume.toFixed(8),
+            });
+        }
+
+        return buyOrdersStepsToGrid;
+    };
+};

@@ -1,5 +1,5 @@
-import { RestClientV5 } from 'bybit-api'
-import 'dotenv/config'
+import { RestClientV5 } from 'bybit-api';
+import 'dotenv/config';
 // InverseClient,
 //   LinearClient,
 //   InverseFuturesClient,
@@ -47,23 +47,23 @@ import 'dotenv/config'
  * Default: false. Enable to throw error if rate limit parser fails */
 
 interface IRestClientOptions {
-	key?: string
-	secret?: string
-	testnet?: boolean
-	recv_window?: number
-	enable_time_sync?: boolean
-	baseUrl?: string
+    key?: string;
+    secret?: string;
+    testnet?: boolean;
+    recv_window?: number;
+    enable_time_sync?: boolean;
+    baseUrl?: string;
 }
 
 const restClientOptions: IRestClientOptions = {
-	testnet: false,
-	key: process.env['API_KEY'],
-	secret: process.env['API_SECRET_KEY'],
-	enable_time_sync: true,
-	recv_window: 5000,
-	baseUrl: 'https://api.bybit.com/',
-}
+    testnet: false,
+    key: process.env['API_KEY'],
+    secret: process.env['API_SECRET_KEY'],
+    enable_time_sync: true,
+    recv_window: 5000,
+    baseUrl: 'https://api.bybit.com/',
+};
 
-const restClient = new RestClientV5(restClientOptions)
+const restClient = new RestClientV5(restClientOptions);
 
-export default restClient
+export default restClient;
