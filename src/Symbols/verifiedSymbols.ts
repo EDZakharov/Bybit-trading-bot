@@ -14,5 +14,6 @@ export const verifiedSymbols = {
     UNI: 'UNIUSDT',
     XRP: 'XRPUSDT',
     KAS: 'KASUSDT',
+    YFI: 'YFIUSDT',
 };
 //TODO add symbols / delete symbols

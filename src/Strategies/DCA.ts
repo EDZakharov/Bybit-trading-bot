@@ -49,43 +49,55 @@
  *
  * */
 
+import { getTickers } from '../Market/getTickers.js';
 import { getMinQty } from '../Orders/getMinQty.js';
 
 interface IBuyOrdersStepsToGrid {
     symbol?: string;
     step: number;
     orderDeviation: number;
-    orderVolume: number;
+    orderBasePairVolume: number;
+    orderSecondaryPairVolume: number;
+    orderPriceToStep: number;
+    orderAveragePrice: number;
+    orderTargetPrice: number;
+    orderTargetDeviation: number;
+    summarizedOrderPriceToStep: number;
 }
 
-type botOptions = {
+interface IBotOptions {
+    targetProfit: number;
     insuranceOrderSteps: number;
     insuranceOrderPriceDeviation: number;
     startOrderVolume: number;
     insuranceOrderStepsMultiplier: number;
     insuranceOrderVolume: number;
     insuranceOrderVolumeMultiplier: number;
-};
+}
 
 export const DCA = ({
+    targetProfit,
     insuranceOrderSteps,
     insuranceOrderStepsMultiplier,
     insuranceOrderPriceDeviation,
     startOrderVolume,
     insuranceOrderVolume,
     insuranceOrderVolumeMultiplier,
-}: botOptions): Function => {
+}: IBotOptions): Function => {
     const buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
 
     return async function (
         symbol: string
     ): Promise<IBuyOrdersStepsToGrid[] | undefined> {
-        if (!insuranceOrderPriceDeviation) {
-            console.error(`request failed: undefined price deviation`);
-            return;
-        }
-
         const minQty = await getMinQty(symbol);
+        const tickerInfo = await getTickers(symbol);
+        let tickerPrice: string;
+        if (!tickerInfo || !tickerInfo.list[0]) {
+            console.error(`request failed: undefined coin info - ${symbol}`);
+            return;
+        } else {
+            tickerPrice = tickerInfo.list[0].lastPrice;
+        }
 
         if (!minQty) {
             console.error(`request failed: bad minQty of ${symbol}`);
@@ -93,50 +105,158 @@ export const DCA = ({
         }
 
         if (startOrderVolume && startOrderVolume <= +minQty) {
-            console.dir(
+            console.error(
                 `request failed: starting order ${startOrderVolume}, min qty ${minQty}`
             );
             return;
         }
+        if (!insuranceOrderPriceDeviation) {
+            console.error(`request failed: undefined price deviation`);
+            return;
+        }
 
-        let orderVolume = startOrderVolume;
+        let orderBasePairVolume = startOrderVolume;
+        let orderSecondaryPairVolume = parseFloat(
+            (orderBasePairVolume / +tickerPrice).toFixed(8)
+        );
         let orderDeviation = 0;
+        let orderPriceToStep = +tickerPrice;
+        let orderTargetPrice = parseFloat(
+            (
+                orderPriceToStep +
+                (orderPriceToStep / 100) * targetProfit
+            ).toFixed(8)
+        );
+        let summarizedOrderPriceToStep = calculateSummarizedOrderPriceToStep();
 
-        // place step 0
+        /**
+         * ________________________________________________
+         * PLACE STEP = 0
+         * ________________________________________________
+         * */
         buyOrdersStepsToGrid.push({
             step: 0,
             orderDeviation,
-            orderVolume,
+            orderSecondaryPairVolume,
+            orderBasePairVolume,
+            orderPriceToStep,
+            orderAveragePrice: 0, //TODO
+            orderTargetPrice,
+            orderTargetDeviation: 0, //TODO
+            summarizedOrderPriceToStep:
+                summarizedOrderPriceToStep(orderBasePairVolume),
         });
 
+        /**
+         * ________________________________________________
+         * PLACE STEPS > 0
+         * ________________________________________________
+         * */
         for (let step = 1; step <= insuranceOrderSteps; step++) {
-            orderDeviation !== 0
-                ? (orderDeviation =
-                      insuranceOrderPriceDeviation +
-                      orderDeviation * insuranceOrderStepsMultiplier)
-                : (orderDeviation = insuranceOrderPriceDeviation);
+            orderDeviation = calculateOrderDeviationToStep(
+                orderDeviation,
+                insuranceOrderPriceDeviation,
+                insuranceOrderStepsMultiplier
+            );
 
             if (orderDeviation > 100) {
                 console.error('order deviation > 100 %');
                 return buyOrdersStepsToGrid;
             }
+            orderBasePairVolume = calculateOrderVolumeToStep(
+                step,
+                orderBasePairVolume,
+                insuranceOrderVolume,
+                insuranceOrderVolumeMultiplier
+            );
 
-            orderVolume === insuranceOrderVolume
-                ? step === 1
-                    ? (orderVolume = insuranceOrderVolume)
-                    : (orderVolume =
-                          orderVolume * insuranceOrderVolumeMultiplier)
-                : step !== 1
-                ? (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
-                : (orderVolume = insuranceOrderVolume);
+            orderPriceToStep = calculateOrderPriceToStep(
+                +tickerPrice,
+                orderDeviation
+            );
+
+            //TODO
+            //wrong result ->
+            orderTargetPrice = calculateOrderTargetPriceToStep(
+                orderPriceToStep,
+                targetProfit
+            ); // <-
 
             buyOrdersStepsToGrid.push({
                 step,
                 orderDeviation: +orderDeviation.toFixed(8),
-                orderVolume: +orderVolume.toFixed(8),
+                orderSecondaryPairVolume: parseFloat(
+                    (orderBasePairVolume / orderPriceToStep).toFixed(8)
+                ),
+                orderBasePairVolume: +orderBasePairVolume.toFixed(8),
+                orderPriceToStep,
+                orderAveragePrice: 0,
+                orderTargetPrice,
+                orderTargetDeviation: 0,
+                summarizedOrderPriceToStep:
+                    summarizedOrderPriceToStep(orderBasePairVolume),
             });
         }
 
         return buyOrdersStepsToGrid;
     };
 };
+
+/**
+ * ________________________________________________
+ * CALCULATE FUNCTIONS
+ * ________________________________________________
+ * */
+
+function calculateOrderDeviationToStep(
+    orderDeviation: number,
+    insuranceOrderPriceDeviation: number,
+    insuranceOrderStepsMultiplier: number
+): number {
+    return orderDeviation !== 0
+        ? (orderDeviation =
+              insuranceOrderPriceDeviation +
+              orderDeviation * insuranceOrderStepsMultiplier)
+        : (orderDeviation = insuranceOrderPriceDeviation);
+}
+
+function calculateOrderVolumeToStep(
+    step: number,
+    orderVolume: number,
+    insuranceOrderVolume: number,
+    insuranceOrderVolumeMultiplier: number
+): number {
+    return orderVolume === insuranceOrderVolume
+        ? step === 1
+            ? (orderVolume = insuranceOrderVolume)
+            : (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
+        : step !== 1
+        ? (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
+        : (orderVolume = insuranceOrderVolume);
+}
+
+function calculateOrderPriceToStep(
+    tickerPrice: number,
+    orderDeviation: number
+): number {
+    return parseFloat(
+        (tickerPrice - (+tickerPrice / 100) * orderDeviation).toFixed(8)
+    );
+}
+
+function calculateOrderTargetPriceToStep(
+    orderPriceToStep: number,
+    targetProfit: number
+): number {
+    return parseFloat(
+        (orderPriceToStep + (orderPriceToStep / 100) * targetProfit).toFixed(8)
+    );
+}
+
+function calculateSummarizedOrderPriceToStep(): Function {
+    let summ = 0;
+    return (orderBasePairVolume: number): number => {
+        summ = summ + orderBasePairVolume;
+        return parseFloat(summ.toFixed(8));
+    };
+}

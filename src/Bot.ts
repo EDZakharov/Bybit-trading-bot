@@ -3,13 +3,14 @@ import { verifiedSymbols } from './Symbols/verifiedSymbols.js';
 
 //TEST
 const bot = DCA({
-    startOrderVolume: 23,
+    targetProfit: 0.7,
+    startOrderVolume: 20,
     insuranceOrderVolume: 15,
-    insuranceOrderSteps: 15,
+    insuranceOrderSteps: 10,
     insuranceOrderPriceDeviation: 0.4,
     insuranceOrderVolumeMultiplier: 0.75,
     insuranceOrderStepsMultiplier: 1.59,
 });
-const trxBot = await bot(verifiedSymbols.TRX);
+const yfiBot = await bot(verifiedSymbols.YFI);
 
-console.log(trxBot);
+console.table(yfiBot);
