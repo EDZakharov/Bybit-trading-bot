@@ -1,9 +1,12 @@
 // import { cancelOrder } from './Orders/cancelOrder.ts'
-import { DCA } from './Strategies/DCA.js'
+// import { DCA } from './Strategies/DCA.js'
 // const test = await getBalance('KAS')
 //TESTS
+
+import { placeOrder } from './Orders/placeOrder.js'
+
 // placeOrder('Buy', 'TRXUSDT', '30', '0.05')
-// placeOrder('Buy', 'KASUSDT', '50', '0.05')
+placeOrder('Buy', 'KASUSDT', '110', '0.06')
 
 // import { getTickers } from './Market/getTickers.ts'
 
@@ -19,8 +22,8 @@ import { DCA } from './Strategies/DCA.js'
 // 	`${response && +response.list[0].lastPrice - 0.02}`
 // )
 
-DCA({
-	symbol: 'KASUSDT',
-	stepsCount: 5,
-	priceDeviation: 0.4,
-})
+// DCA({
+// 	symbol: 'KASUSDT',
+// 	stepsCount: 5,
+// 	priceDeviation: 0.4,
+// })

@@ -1,5 +1,6 @@
 import { symbolChecker } from '../Utils/symbolChecker.js'
 import restClient from '../restClient.js'
+import { cancelOrder } from './cancelOrder.js'
 import { getMinQty } from './getMinQty.js'
 
 type sides = 'Buy' | 'Sell'
@@ -29,7 +30,7 @@ export const placeOrder = async (
 			})
 			console.dir(data)
 			// cancel order
-			// await cancelOrder(symbol, data.result.orderId)
+			await cancelOrder(symbol, data.result.orderId)
 		} else {
 			!instrumentMinQty
 				? console.error(`request failed: undefined coin - ${symbol}`)
