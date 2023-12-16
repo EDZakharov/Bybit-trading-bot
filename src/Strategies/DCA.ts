@@ -87,7 +87,6 @@ export const DCA = ({
     insuranceOrderVolumeMultiplier,
 }: IBotOptions): Function => {
     const buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
-
     return async function (
         symbol: string
     ): Promise<IBuyOrdersStepsToGrid[] | undefined> {
@@ -124,7 +123,13 @@ export const DCA = ({
         let orderDeviation = 0;
         let orderPriceToStep = +tickerPrice;
 
-        let orderTargetDeviation = targetProfit;
+        // let orderTargetDeviation = calculateOrderTargetDeviationToStep(
+        //     targetProfit,
+        //     orderDeviation,
+        //     insuranceOrderStepsMultiplier,
+        //     insuranceOrderPriceDeviation,
+        //     insuranceOrderVolumeMultiplier
+        // );
         let summarizedOrderBasePairVolume =
             calculateSummarizedPairVolumeToStep();
         let calculatedSummarizedPairVolumeToStep =
@@ -139,9 +144,15 @@ export const DCA = ({
         });
 
         let orderTargetPrice = calculateOrderTargetPriceToStep(
-            // targetProfit,
+            orderAveragePrice,
+            targetProfit
+            // orderPriceToStep,
+            // orderTargetDeviation
+            // insuranceOrderStepsMultiplier
+        );
+        let orderTargetDeviation = calculateOrderTargetDeviationToStep(
             orderPriceToStep,
-            insuranceOrderStepsMultiplier
+            orderTargetPrice
         );
         let summarizedOrderSecondaryPairVolume =
             calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
@@ -206,17 +217,13 @@ export const DCA = ({
                 orderSecondaryPairVolume,
                 summarizedOrderSecondaryPairVolume,
             });
-
-            orderTargetDeviation = calculateOrderTargetDeviationToStep(
-                orderDeviation,
-                insuranceOrderStepsMultiplier,
-                insuranceOrderPriceDeviation
-            );
-
             orderTargetPrice = calculateOrderTargetPriceToStep(
-                // targetProfit,
+                orderAveragePrice,
+                targetProfit
+            );
+            orderTargetDeviation = calculateOrderTargetDeviationToStep(
                 orderPriceToStep,
-                insuranceOrderStepsMultiplier
+                orderTargetPrice
             );
 
             buyOrdersStepsToGrid.push({
@@ -289,7 +296,6 @@ function calculateAveragePriceToStep(
     prevPrice: number,
     prevVolume: number
 ): Function {
-    // let summ = 0;
     let orderPricesToStep: Array<number> = [];
     let orderSecondaryPairVolumesToStep: Array<number> = [];
     prevPrice && orderPricesToStep.push(prevPrice);
@@ -316,24 +322,26 @@ function calculateAveragePriceToStep(
 }
 
 function calculateOrderTargetPriceToStep(
-    // targetProfit: number,
-    orderPriceToStep: number,
-    insuranceOrderStepsMultiplier: number
+    orderAveragePrice: number,
+    targetProfit: number
 ): number {
-    const calculate = orderPriceToStep * insuranceOrderStepsMultiplier;
-    //     orderPriceToStep * (targetProfit + orderTargetDeviation * 0.01);
-    // console.table({ orderPriceToStep, orderTargetDeviation, calculate });
+    console.table({
+        orderAveragePrice,
+        targetProfit,
+    });
+    const calculate =
+        orderAveragePrice + (orderAveragePrice + targetProfit * 0.01) / 100;
+
     return parseFloat(calculate.toFixed(8));
 }
 
 function calculateOrderTargetDeviationToStep(
-    orderDeviation: number,
-    insuranceOrderStepsMultiplier: number,
-    insuranceOrderPriceDeviation: number
+    orderPriceToStep: number,
+    orderTargetPrice: number
 ): number {
+    // OLS in regression analysis (data approximation)???????????????
     const calculate =
-        orderDeviation +
-        insuranceOrderStepsMultiplier * insuranceOrderPriceDeviation;
+        ((orderTargetPrice - orderPriceToStep) / orderPriceToStep) * 100;
     return parseFloat(calculate.toFixed(8));
 }
 
