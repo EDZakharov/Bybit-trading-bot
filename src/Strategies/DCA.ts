@@ -47,6 +47,7 @@
  * 3 safety orders are executed for a total of $900, then the total trade size
  * becomes $1000. And in this case the TP level will be set to $50, not $5.
  *
+ *
  * */
 
 import { getTickers } from '../Market/getTickers.js';
@@ -62,7 +63,8 @@ interface IBuyOrdersStepsToGrid {
     orderAveragePrice: number;
     orderTargetPrice: number;
     orderTargetDeviation: number;
-    summarizedOrderPriceToStep: number;
+    summarizedOrderBasePairVolume: number;
+    summarizedOrderSecondaryPairVolume: number;
 }
 
 interface IBotOptions {
@@ -121,13 +123,28 @@ export const DCA = ({
         );
         let orderDeviation = 0;
         let orderPriceToStep = +tickerPrice;
-        let orderTargetPrice = parseFloat(
-            (
-                orderPriceToStep +
-                (orderPriceToStep / 100) * targetProfit
-            ).toFixed(8)
+
+        let orderTargetDeviation = targetProfit;
+        let summarizedOrderBasePairVolume =
+            calculateSummarizedPairVolumeToStep();
+        let calculatedSummarizedPairVolumeToStep =
+            calculateSummarizedPairVolumeToStep();
+        // let summarizedOrderSecondaryPairVolumeToFirstStep =
+        //     calculateSummarizedPairVolumeToStep()(orderSecondaryPairVolume);
+        const orderAveragePriceToStep = calculateAveragePriceToStep(0, 0);
+        let orderAveragePrice = orderAveragePriceToStep({
+            orderPriceToStep,
+            orderSecondaryPairVolume,
+            summarizedOrderSecondaryPairVolume: orderSecondaryPairVolume,
+        });
+
+        let orderTargetPrice = calculateOrderTargetPriceToStep(
+            // targetProfit,
+            orderPriceToStep,
+            insuranceOrderStepsMultiplier
         );
-        let summarizedOrderPriceToStep = calculateSummarizedOrderPriceToStep();
+        let summarizedOrderSecondaryPairVolume =
+            calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
 
         /**
          * ________________________________________________
@@ -140,11 +157,12 @@ export const DCA = ({
             orderSecondaryPairVolume,
             orderBasePairVolume,
             orderPriceToStep,
-            orderAveragePrice: 0, //TODO
+            orderAveragePrice,
             orderTargetPrice,
-            orderTargetDeviation: 0, //TODO
-            summarizedOrderPriceToStep:
-                summarizedOrderPriceToStep(orderBasePairVolume),
+            orderTargetDeviation, //TODO
+            summarizedOrderSecondaryPairVolume,
+            summarizedOrderBasePairVolume:
+                summarizedOrderBasePairVolume(orderBasePairVolume),
         });
 
         /**
@@ -163,6 +181,7 @@ export const DCA = ({
                 console.error('order deviation > 100 %');
                 return buyOrdersStepsToGrid;
             }
+
             orderBasePairVolume = calculateOrderVolumeToStep(
                 step,
                 orderBasePairVolume,
@@ -175,29 +194,45 @@ export const DCA = ({
                 orderDeviation
             );
 
-            //TODO
-            //wrong result ->
-            orderTargetPrice = calculateOrderTargetPriceToStep(
+            orderSecondaryPairVolume = parseFloat(
+                (orderBasePairVolume / orderPriceToStep).toFixed(8)
+            );
+
+            summarizedOrderSecondaryPairVolume =
+                calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
+
+            orderAveragePrice = orderAveragePriceToStep({
                 orderPriceToStep,
-                targetProfit
-            ); // <-
+                orderSecondaryPairVolume,
+                summarizedOrderSecondaryPairVolume,
+            });
+
+            orderTargetDeviation = calculateOrderTargetDeviationToStep(
+                orderDeviation,
+                insuranceOrderStepsMultiplier,
+                insuranceOrderPriceDeviation
+            );
+
+            orderTargetPrice = calculateOrderTargetPriceToStep(
+                // targetProfit,
+                orderPriceToStep,
+                insuranceOrderStepsMultiplier
+            );
 
             buyOrdersStepsToGrid.push({
                 step,
                 orderDeviation: +orderDeviation.toFixed(8),
-                orderSecondaryPairVolume: parseFloat(
-                    (orderBasePairVolume / orderPriceToStep).toFixed(8)
-                ),
+                orderSecondaryPairVolume,
                 orderBasePairVolume: +orderBasePairVolume.toFixed(8),
                 orderPriceToStep,
-                orderAveragePrice: 0,
+                orderAveragePrice,
                 orderTargetPrice,
-                orderTargetDeviation: 0,
-                summarizedOrderPriceToStep:
-                    summarizedOrderPriceToStep(orderBasePairVolume),
+                orderTargetDeviation,
+                summarizedOrderSecondaryPairVolume,
+                summarizedOrderBasePairVolume:
+                    summarizedOrderBasePairVolume(orderBasePairVolume),
             });
         }
-
         return buyOrdersStepsToGrid;
     };
 };
@@ -244,19 +279,68 @@ function calculateOrderPriceToStep(
     );
 }
 
-function calculateOrderTargetPriceToStep(
-    orderPriceToStep: number,
-    targetProfit: number
-): number {
-    return parseFloat(
-        (orderPriceToStep + (orderPriceToStep / 100) * targetProfit).toFixed(8)
-    );
+interface IWeightedSum {
+    orderPriceToStep: number; //orderPriceToStep
+    orderSecondaryPairVolume: number; // orderSecondaryPairVolume
+    summarizedOrderSecondaryPairVolume: number; //summarizedOrderSecondaryPairVolume
 }
 
-function calculateSummarizedOrderPriceToStep(): Function {
+function calculateAveragePriceToStep(
+    prevPrice: number,
+    prevVolume: number
+): Function {
+    // let summ = 0;
+    let orderPricesToStep: Array<number> = [];
+    let orderSecondaryPairVolumesToStep: Array<number> = [];
+    prevPrice && orderPricesToStep.push(prevPrice);
+    prevVolume && orderSecondaryPairVolumesToStep.push(prevVolume);
+    let weightedSum;
+    return function ({
+        orderPriceToStep,
+        orderSecondaryPairVolume,
+        summarizedOrderSecondaryPairVolume,
+    }: IWeightedSum): number {
+        orderPricesToStep.push(orderPriceToStep);
+        orderSecondaryPairVolumesToStep.push(orderSecondaryPairVolume);
+        weightedSum = orderSecondaryPairVolumesToStep.reduce(
+            (prev: number, curr: number, index: number): number => {
+                // @ts-ignore
+                return prev + curr * orderPricesToStep[index];
+            },
+            0
+        );
+
+        const averagePrice = weightedSum / summarizedOrderSecondaryPairVolume;
+        return parseFloat(averagePrice.toFixed(8));
+    };
+}
+
+function calculateOrderTargetPriceToStep(
+    // targetProfit: number,
+    orderPriceToStep: number,
+    insuranceOrderStepsMultiplier: number
+): number {
+    const calculate = orderPriceToStep * insuranceOrderStepsMultiplier;
+    //     orderPriceToStep * (targetProfit + orderTargetDeviation * 0.01);
+    // console.table({ orderPriceToStep, orderTargetDeviation, calculate });
+    return parseFloat(calculate.toFixed(8));
+}
+
+function calculateOrderTargetDeviationToStep(
+    orderDeviation: number,
+    insuranceOrderStepsMultiplier: number,
+    insuranceOrderPriceDeviation: number
+): number {
+    const calculate =
+        orderDeviation +
+        insuranceOrderStepsMultiplier * insuranceOrderPriceDeviation;
+    return parseFloat(calculate.toFixed(8));
+}
+
+function calculateSummarizedPairVolumeToStep(): Function {
     let summ = 0;
-    return (orderBasePairVolume: number): number => {
-        summ = summ + orderBasePairVolume;
+    return (pairVolume: number): number => {
+        summ = summ + pairVolume;
         return parseFloat(summ.toFixed(8));
     };
 }
