@@ -1,15 +1,10 @@
 import restClient from '../restClient.js';
+import { IGetBalance } from '../Types/types.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
 
-interface IBalance {
-    coin: string;
-    walletBalance: string;
-    transferBalance: string;
-    bonus: string;
-}
 export const getBalance = async (
     coin: string
-): Promise<IBalance | undefined> => {
+): Promise<IGetBalance | undefined> => {
     let ok = symbolChecker(coin);
     if (!ok) {
         console.error(`request failed: undefined coin`);

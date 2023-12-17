@@ -1,24 +1,16 @@
+import { IPlaceOrder } from '../Types/types.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
 import restClient from '../restClient.js';
 import { getMinQty } from './getMinQty.js';
 
-type sides = 'Buy' | 'Sell';
-
-export const placeOrder = async (
-    side: sides,
-    symbol: string,
-    qty: string,
-    price: string
-) => {
+export const placeOrder = async ({ side, symbol, qty, price }: IPlaceOrder) => {
     if (!symbolChecker(symbol)) {
         console.error(`request failed: undefined coin - ${symbol}`);
         return;
     }
-
     try {
         const instrumentMinQty = await getMinQty(symbol);
         if (instrumentMinQty && +instrumentMinQty <= +qty) {
-            // place order
             const data = await restClient.submitOrder({
                 category: 'spot',
                 orderType: 'Limit',

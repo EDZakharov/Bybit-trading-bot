@@ -27,3 +27,17 @@ export interface IWeightedSum {
     orderSecondaryPairVolume: number;
     summarizedOrderSecondaryPairVolume: number;
 }
+
+export interface IGetBalance {
+    coin: string;
+    walletBalance: string;
+    transferBalance: string;
+    bonus: string;
+}
+
+export interface IPlaceOrder {
+    side: 'Buy' | 'Sell';
+    symbol: string;
+    qty: string;
+    price: string;
+}

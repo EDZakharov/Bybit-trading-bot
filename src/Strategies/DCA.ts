@@ -263,30 +263,35 @@ async function checkingSymbolInfo(
     symbol: string,
     startOrderVolume: number
 ): Promise<undefined | number> {
-    const minQty = await getMinQty(symbol);
-    const tickerInfo = await getTickers(symbol);
-    let tickerPrice: string;
-    if (!tickerInfo || !tickerInfo.list[0]) {
-        console.error(`request failed: undefined coin info - ${symbol}`);
-        return;
-    } else {
-        tickerPrice = tickerInfo.list[0].lastPrice;
-    }
+    try {
+        const minQty = await getMinQty(symbol);
+        const tickerInfo = await getTickers(symbol);
+        let tickerPrice: string;
+        if (!tickerInfo || !tickerInfo.list[0]) {
+            console.error(`request failed: undefined coin info - ${symbol}`);
+            return;
+        } else {
+            tickerPrice = tickerInfo.list[0].lastPrice;
+        }
 
-    if (!minQty) {
-        console.error(`request failed: bad minQty of ${symbol}`);
-        return;
-    }
+        if (!minQty) {
+            console.error(`request failed: bad minQty of ${symbol}`);
+            return;
+        }
 
-    if (startOrderVolume && startOrderVolume / +tickerPrice <= +minQty) {
-        console.error(
-            `request failed: starting order qty = ${parseFloat(
-                (startOrderVolume / +tickerPrice).toFixed(8)
-            )}, min qty = ${minQty}`
-        );
+        if (startOrderVolume && startOrderVolume / +tickerPrice <= +minQty) {
+            console.error(
+                `request failed: starting order qty = ${parseFloat(
+                    (startOrderVolume / +tickerPrice).toFixed(8)
+                )}, min qty = ${minQty}`
+            );
+            return;
+        }
+        return +tickerPrice;
+    } catch (error) {
+        console.error(error);
         return;
     }
-    return +tickerPrice;
 }
 
 /**
