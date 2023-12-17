@@ -1,15 +1,6 @@
 import { RestClientV5 } from 'bybit-api';
 import 'dotenv/config';
-// InverseClient,
-//   LinearClient,
-//   InverseFuturesClient,
-//   SpotClientV3,
-//   UnifiedMarginClient,
-//   USDCOptionClient,
-//   USDCPerpetualClient,
-//   AccountAssetClient,
-//   CopyTradingClient,
-//   RestClientV5
+import { IRestClientOptions } from './Types/types.js';
 
 /** key?: string;
  * Your API key. Optional, if you plan on making private api calls */
@@ -45,15 +36,6 @@ import 'dotenv/config';
 
 /** throwOnFailedRateLimitParse?: boolean;
  * Default: false. Enable to throw error if rate limit parser fails */
-
-interface IRestClientOptions {
-    key?: string;
-    secret?: string;
-    testnet?: boolean;
-    recv_window?: number;
-    enable_time_sync?: boolean;
-    baseUrl?: string;
-}
 
 const restClientOptions: IRestClientOptions = {
     testnet: false,

@@ -1,6 +1,5 @@
 import { getTickers } from '../Market/getTickers.js';
 import { getMinQty } from '../Orders/getMinQty.js';
-import { verifiedSymbols } from '../Symbols/verifiedSymbols.js';
 import {
     IBotConfig,
     IBuyOrdersStepsToGrid,
@@ -10,10 +9,11 @@ import {
 export const generateBotStrategy = (botConfig: IBotConfig): Function => {
     let buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
     let currentSymbol: string;
+
     return async function (
         symbol: string
     ): Promise<IBuyOrdersStepsToGrid[] | undefined> {
-        if (!checkingBotConfigErrors(botConfig) && verifySymbol(symbol)) {
+        if (!checkingBotConfigErrors(botConfig)) {
             const {
                 targetProfitPercent,
                 insuranceOrderSteps,
@@ -32,6 +32,7 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
             if (!tickerPrice) {
                 return;
             }
+
             if (
                 buyOrdersStepsToGrid.length >= insuranceOrderSteps ||
                 currentSymbol !== symbol
@@ -39,6 +40,7 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
                 currentSymbol = symbol;
                 buyOrdersStepsToGrid = [];
             }
+
             let orderBasePairVolume = startOrderVolumeUSDT;
             let orderSecondaryPairVolume = parseFloat(
                 (orderBasePairVolume / +tickerPrice).toFixed(8)
@@ -66,9 +68,7 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
             let summarizedOrderSecondaryPairVolume =
                 calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
 
-            /**
-             * PLACE STEP = 0
-             * */
+            /** PLACE STEP = 0 */
             buyOrdersStepsToGrid.push({
                 step: 0,
                 orderDeviation,
@@ -83,9 +83,7 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
                     summarizedOrderBasePairVolume(orderBasePairVolume),
             });
 
-            /**
-             * PLACE STEPS > 0
-             * */
+            /** PLACE STEPS > 0*/
             for (let step = 1; step <= insuranceOrderSteps; step++) {
                 orderDeviation = calculateOrderDeviationToStep(
                     orderDeviation,
@@ -124,10 +122,12 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
                     orderSecondaryPairVolume,
                     summarizedOrderSecondaryPairVolume,
                 });
+
                 orderTargetPrice = calculateOrderTargetPriceToStep(
                     orderAveragePrice,
                     targetProfitPercent
                 );
+
                 orderTargetDeviation = calculateOrderTargetDeviationToStep(
                     orderPriceToStep,
                     orderTargetPrice
@@ -154,11 +154,7 @@ export const generateBotStrategy = (botConfig: IBotConfig): Function => {
     };
 };
 
-/**
- * ________________________________________________
- * CALCULATE FUNCTIONS
- * ________________________________________________
- * */
+/** CALCULATE FUNCTIONS */
 
 function calculateOrderDeviationToStep(
     orderDeviation: number,
@@ -231,7 +227,6 @@ function calculateOrderTargetPriceToStep(
 ): number {
     const calculate =
         orderAveragePrice + (orderAveragePrice + targetProfit * 0.01) / 100;
-
     return parseFloat(calculate.toFixed(8));
 }
 
@@ -247,17 +242,14 @@ function calculateOrderTargetDeviationToStep(
 
 function calculateSummarizedPairVolumeToStep(): Function {
     let summ = 0;
+
     return (pairVolume: number): number => {
         summ = summ + pairVolume;
         return parseFloat(summ.toFixed(8));
     };
 }
 
-/**
- * ________________________________________________
- * CHECKING SYMBOL INFO
- * ________________________________________________
- * */
+/** CHECKING SYMBOL INFO */
 
 async function checkingSymbolInfo(
     symbol: string,
@@ -267,6 +259,7 @@ async function checkingSymbolInfo(
         const minQty = await getMinQty(symbol);
         const tickerInfo = await getTickers(symbol);
         let tickerPrice: string;
+
         if (!tickerInfo || !tickerInfo.list[0]) {
             console.error(`request failed: undefined coin info - ${symbol}`);
             return;
@@ -287,6 +280,7 @@ async function checkingSymbolInfo(
             );
             return;
         }
+
         return +tickerPrice;
     } catch (error) {
         console.error(error);
@@ -294,11 +288,7 @@ async function checkingSymbolInfo(
     }
 }
 
-/**
- * ________________________________________________
- * CHECKING ERRORS
- * ________________________________________________
- * */
+/** CHECKING ERRORS */
 
 function checkingBotConfigErrors(props: IBotConfig) {
     return Object.values(props).some(
@@ -309,8 +299,4 @@ function checkingBotConfigErrors(props: IBotConfig) {
             element === null ||
             element.length !== undefined
     );
-}
-
-function verifySymbol(symbol: string): boolean {
-    return Object.values(verifiedSymbols).some((element) => element === symbol);
 }
