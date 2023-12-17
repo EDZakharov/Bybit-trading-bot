@@ -14,7 +14,6 @@ export const getTickers = async (
             console.error(`request failed: undefined coin - ${symbol}`);
             return;
         }
-        console.dir(result);
         return result;
     } catch (error) {
         console.error('request failed: something went wrong');

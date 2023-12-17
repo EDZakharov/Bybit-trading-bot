@@ -1,20 +1,11 @@
-import { DCA } from './Strategies/DCA.js';
+import { generateBotStrategy } from './Strategies/DCA.js';
 import { verifiedSymbols } from './Symbols/verifiedSymbols.js';
+import { botConfig } from './botConfig.js';
 
-//TEST
-
-const botConfig = {
-    targetProfit: 0.5,
-    startOrderVolume: 30,
-    insuranceOrderVolume: 30,
-    insuranceOrderSteps: 10,
-    insuranceOrderPriceDeviation: 0.4,
-    insuranceOrderVolumeMultiplier: 0.75,
-    insuranceOrderStepsMultiplier: 1.59,
-};
-
-const bot = DCA(botConfig);
+const bot = generateBotStrategy(botConfig);
 const kasBot = await bot(verifiedSymbols.KAS);
-
-console.table(botConfig);
+const btcBot = await bot(verifiedSymbols.BTC);
+const ltcBot = await bot(verifiedSymbols.LTC);
+console.table(btcBot);
 console.table(kasBot);
+console.table(ltcBot);

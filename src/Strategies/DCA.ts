@@ -1,236 +1,79 @@
-/** Sequencing
- * using strategies - long
- *
- * set target profit or minimum profit - %
- * select deals conditions - immediately | rsi | other
- * set volume of start order - number
- * set volume of insurance order - number
- * set maximum number of insurance orders - number
- * select type of insurance orders - market | limit
- * set price deviation - % of the cost of the initial order
- * set safety order volume multiplier - number
- * set safety order step multiplier - number
- * create a grid for calculating the amount of additional funds for each step
- *
- * start market order
- *
- * ______________________________
- * >>>>> It works like this <<<<<
- * ______________________________
- * Let's say you set the minimum return at 1%.
- * Thus: If the price has not reached this level of profitability, and the
- * selected closing condition signals the closure of the transaction, it will
- * not be closed!
- *
- * If the price overcomes the minimum profit level and the condition for
- * closing the transaction is met to close the transaction, it will be closed!
- *
- * If the price exceeds the minimum profit level and then falls below this
- * level again, the transaction will return to the original standby mode.
- * Thus, if the price falls below the minimum yield again and the trade exit
- * condition is met, the trade will not be closed.
- *
- * ________________________________________________
- * >>>>> Calculation of minimum profitability <<<<<
- * ________________________________________________
- * As a percentage of the base order - the bot will calculate the minimum TP
- * level, taking into account only the size of the base order, regardless of
- * how many safety orders are filled.
- * Thus, if the base order size is $100 and the minimum profit is set to 5%
- * then the TP level will produce a profit of $5 regardless of how many safety
- * orders are filled.
- *
- * As a percentage of the final volume - the bot will calculate the minimum TP
- * level taking into account the size of the entire transaction, and not just
- * the size of the base order.
- * Thus, if the Minimum Profit is set to 5%, the base order size is $100, and
- * 3 safety orders are executed for a total of $900, then the total trade size
- * becomes $1000. And in this case the TP level will be set to $50, not $5.
- *
- *
- * */
-
 import { getTickers } from '../Market/getTickers.js';
 import { getMinQty } from '../Orders/getMinQty.js';
+import { verifiedSymbols } from '../Symbols/verifiedSymbols.js';
+import {
+    IBotConfig,
+    IBuyOrdersStepsToGrid,
+    IWeightedSum,
+} from '../Types/types.js';
 
-interface IBuyOrdersStepsToGrid {
-    symbol?: string;
-    step: number;
-    orderDeviation: number;
-    orderBasePairVolume: number;
-    orderSecondaryPairVolume: number;
-    orderPriceToStep: number;
-    orderAveragePrice: number;
-    orderTargetPrice: number;
-    orderTargetDeviation: number;
-    summarizedOrderBasePairVolume: number;
-    summarizedOrderSecondaryPairVolume: number;
-}
-
-interface IBotOptions {
-    targetProfit: number;
-    insuranceOrderSteps: number;
-    insuranceOrderPriceDeviation: number;
-    startOrderVolume: number;
-    insuranceOrderStepsMultiplier: number;
-    insuranceOrderVolume: number;
-    insuranceOrderVolumeMultiplier: number;
-}
-
-export const DCA = ({
-    targetProfit,
-    insuranceOrderSteps,
-    insuranceOrderStepsMultiplier,
-    insuranceOrderPriceDeviation,
-    startOrderVolume,
-    insuranceOrderVolume,
-    insuranceOrderVolumeMultiplier,
-}: IBotOptions): Function => {
-    const buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
+export const generateBotStrategy = (botConfig: IBotConfig): Function => {
+    let buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
+    let currentSymbol: string;
     return async function (
         symbol: string
     ): Promise<IBuyOrdersStepsToGrid[] | undefined> {
-        const minQty = await getMinQty(symbol);
-        const tickerInfo = await getTickers(symbol);
-        let tickerPrice: string;
-        if (!tickerInfo || !tickerInfo.list[0]) {
-            console.error(`request failed: undefined coin info - ${symbol}`);
-            return;
-        } else {
-            tickerPrice = tickerInfo.list[0].lastPrice;
-        }
+        if (!checkingBotConfigErrors(botConfig) && verifySymbol(symbol)) {
+            const {
+                targetProfitPercent,
+                insuranceOrderSteps,
+                insuranceOrderStepsMultiplier,
+                insuranceOrderPriceDeviationPercent,
+                startOrderVolumeUSDT,
+                insuranceOrderVolumeUSDT,
+                insuranceOrderVolumeMultiplier,
+            } = botConfig;
 
-        if (!minQty) {
-            console.error(`request failed: bad minQty of ${symbol}`);
-            return;
-        }
-
-        if (startOrderVolume && startOrderVolume <= +minQty) {
-            console.error(
-                `request failed: starting order ${startOrderVolume}, min qty ${minQty}`
-            );
-            return;
-        }
-        if (!insuranceOrderPriceDeviation) {
-            console.error(`request failed: undefined price deviation`);
-            return;
-        }
-
-        let orderBasePairVolume = startOrderVolume;
-        let orderSecondaryPairVolume = parseFloat(
-            (orderBasePairVolume / +tickerPrice).toFixed(8)
-        );
-        let orderDeviation = 0;
-        let orderPriceToStep = +tickerPrice;
-
-        // let orderTargetDeviation = calculateOrderTargetDeviationToStep(
-        //     targetProfit,
-        //     orderDeviation,
-        //     insuranceOrderStepsMultiplier,
-        //     insuranceOrderPriceDeviation,
-        //     insuranceOrderVolumeMultiplier
-        // );
-        let summarizedOrderBasePairVolume =
-            calculateSummarizedPairVolumeToStep();
-        let calculatedSummarizedPairVolumeToStep =
-            calculateSummarizedPairVolumeToStep();
-        // let summarizedOrderSecondaryPairVolumeToFirstStep =
-        //     calculateSummarizedPairVolumeToStep()(orderSecondaryPairVolume);
-        const orderAveragePriceToStep = calculateAveragePriceToStep(0, 0);
-        let orderAveragePrice = orderAveragePriceToStep({
-            orderPriceToStep,
-            orderSecondaryPairVolume,
-            summarizedOrderSecondaryPairVolume: orderSecondaryPairVolume,
-        });
-
-        let orderTargetPrice = calculateOrderTargetPriceToStep(
-            orderAveragePrice,
-            targetProfit
-            // orderPriceToStep,
-            // orderTargetDeviation
-            // insuranceOrderStepsMultiplier
-        );
-        let orderTargetDeviation = calculateOrderTargetDeviationToStep(
-            orderPriceToStep,
-            orderTargetPrice
-        );
-        let summarizedOrderSecondaryPairVolume =
-            calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
-
-        /**
-         * ________________________________________________
-         * PLACE STEP = 0
-         * ________________________________________________
-         * */
-        buyOrdersStepsToGrid.push({
-            step: 0,
-            orderDeviation,
-            orderSecondaryPairVolume,
-            orderBasePairVolume,
-            orderPriceToStep,
-            orderAveragePrice,
-            orderTargetPrice,
-            orderTargetDeviation, //TODO
-            summarizedOrderSecondaryPairVolume,
-            summarizedOrderBasePairVolume:
-                summarizedOrderBasePairVolume(orderBasePairVolume),
-        });
-
-        /**
-         * ________________________________________________
-         * PLACE STEPS > 0
-         * ________________________________________________
-         * */
-        for (let step = 1; step <= insuranceOrderSteps; step++) {
-            orderDeviation = calculateOrderDeviationToStep(
-                orderDeviation,
-                insuranceOrderPriceDeviation,
-                insuranceOrderStepsMultiplier
+            let tickerPrice = await checkingSymbolInfo(
+                symbol,
+                startOrderVolumeUSDT
             );
 
-            if (orderDeviation > 100) {
-                console.error('order deviation > 100 %');
-                return buyOrdersStepsToGrid;
+            if (!tickerPrice) {
+                return;
             }
-
-            orderBasePairVolume = calculateOrderVolumeToStep(
-                step,
-                orderBasePairVolume,
-                insuranceOrderVolume,
-                insuranceOrderVolumeMultiplier
+            if (
+                buyOrdersStepsToGrid.length >= insuranceOrderSteps ||
+                currentSymbol !== symbol
+            ) {
+                currentSymbol = symbol;
+                buyOrdersStepsToGrid = [];
+            }
+            let orderBasePairVolume = startOrderVolumeUSDT;
+            let orderSecondaryPairVolume = parseFloat(
+                (orderBasePairVolume / +tickerPrice).toFixed(8)
             );
-
-            orderPriceToStep = calculateOrderPriceToStep(
-                +tickerPrice,
-                orderDeviation
-            );
-
-            orderSecondaryPairVolume = parseFloat(
-                (orderBasePairVolume / orderPriceToStep).toFixed(8)
-            );
-
-            summarizedOrderSecondaryPairVolume =
-                calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
-
-            orderAveragePrice = orderAveragePriceToStep({
+            let orderDeviation = 0;
+            let orderPriceToStep = +tickerPrice;
+            let summarizedOrderBasePairVolume =
+                calculateSummarizedPairVolumeToStep();
+            let calculatedSummarizedPairVolumeToStep =
+                calculateSummarizedPairVolumeToStep();
+            const orderAveragePriceToStep = calculateAveragePriceToStep(0, 0);
+            let orderAveragePrice = orderAveragePriceToStep({
                 orderPriceToStep,
                 orderSecondaryPairVolume,
-                summarizedOrderSecondaryPairVolume,
+                summarizedOrderSecondaryPairVolume: orderSecondaryPairVolume,
             });
-            orderTargetPrice = calculateOrderTargetPriceToStep(
+            let orderTargetPrice = calculateOrderTargetPriceToStep(
                 orderAveragePrice,
-                targetProfit
+                targetProfitPercent
             );
-            orderTargetDeviation = calculateOrderTargetDeviationToStep(
+            let orderTargetDeviation = calculateOrderTargetDeviationToStep(
                 orderPriceToStep,
                 orderTargetPrice
             );
+            let summarizedOrderSecondaryPairVolume =
+                calculatedSummarizedPairVolumeToStep(orderSecondaryPairVolume);
 
+            /**
+             * PLACE STEP = 0
+             * */
             buyOrdersStepsToGrid.push({
-                step,
-                orderDeviation: +orderDeviation.toFixed(8),
+                step: 0,
+                orderDeviation,
                 orderSecondaryPairVolume,
-                orderBasePairVolume: +orderBasePairVolume.toFixed(8),
+                orderBasePairVolume,
                 orderPriceToStep,
                 orderAveragePrice,
                 orderTargetPrice,
@@ -239,8 +82,75 @@ export const DCA = ({
                 summarizedOrderBasePairVolume:
                     summarizedOrderBasePairVolume(orderBasePairVolume),
             });
+
+            /**
+             * PLACE STEPS > 0
+             * */
+            for (let step = 1; step <= insuranceOrderSteps; step++) {
+                orderDeviation = calculateOrderDeviationToStep(
+                    orderDeviation,
+                    insuranceOrderPriceDeviationPercent,
+                    insuranceOrderStepsMultiplier
+                );
+
+                if (orderDeviation > 100) {
+                    console.error('order deviation > 100 %');
+                    return buyOrdersStepsToGrid;
+                }
+
+                orderBasePairVolume = calculateOrderVolumeToStep(
+                    step,
+                    orderBasePairVolume,
+                    insuranceOrderVolumeUSDT,
+                    insuranceOrderVolumeMultiplier
+                );
+
+                orderPriceToStep = calculateOrderPriceToStep(
+                    +tickerPrice,
+                    orderDeviation
+                );
+
+                orderSecondaryPairVolume = parseFloat(
+                    (orderBasePairVolume / orderPriceToStep).toFixed(8)
+                );
+
+                summarizedOrderSecondaryPairVolume =
+                    calculatedSummarizedPairVolumeToStep(
+                        orderSecondaryPairVolume
+                    );
+
+                orderAveragePrice = orderAveragePriceToStep({
+                    orderPriceToStep,
+                    orderSecondaryPairVolume,
+                    summarizedOrderSecondaryPairVolume,
+                });
+                orderTargetPrice = calculateOrderTargetPriceToStep(
+                    orderAveragePrice,
+                    targetProfitPercent
+                );
+                orderTargetDeviation = calculateOrderTargetDeviationToStep(
+                    orderPriceToStep,
+                    orderTargetPrice
+                );
+
+                buyOrdersStepsToGrid.push({
+                    step,
+                    orderDeviation: +orderDeviation.toFixed(8),
+                    orderSecondaryPairVolume,
+                    orderBasePairVolume: +orderBasePairVolume.toFixed(8),
+                    orderPriceToStep,
+                    orderAveragePrice,
+                    orderTargetPrice,
+                    orderTargetDeviation,
+                    summarizedOrderSecondaryPairVolume,
+                    summarizedOrderBasePairVolume:
+                        summarizedOrderBasePairVolume(orderBasePairVolume),
+                });
+            }
+            return buyOrdersStepsToGrid;
+        } else {
+            return;
         }
-        return buyOrdersStepsToGrid;
     };
 };
 
@@ -265,16 +175,16 @@ function calculateOrderDeviationToStep(
 function calculateOrderVolumeToStep(
     step: number,
     orderVolume: number,
-    insuranceOrderVolume: number,
+    insuranceOrderVolumeUSDT: number,
     insuranceOrderVolumeMultiplier: number
 ): number {
-    return orderVolume === insuranceOrderVolume
+    return orderVolume === insuranceOrderVolumeUSDT
         ? step === 1
-            ? (orderVolume = insuranceOrderVolume)
+            ? (orderVolume = insuranceOrderVolumeUSDT)
             : (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
         : step !== 1
         ? (orderVolume = orderVolume * insuranceOrderVolumeMultiplier)
-        : (orderVolume = insuranceOrderVolume);
+        : (orderVolume = insuranceOrderVolumeUSDT);
 }
 
 function calculateOrderPriceToStep(
@@ -284,12 +194,6 @@ function calculateOrderPriceToStep(
     return parseFloat(
         (tickerPrice - (+tickerPrice / 100) * orderDeviation).toFixed(8)
     );
-}
-
-interface IWeightedSum {
-    orderPriceToStep: number; //orderPriceToStep
-    orderSecondaryPairVolume: number; // orderSecondaryPairVolume
-    summarizedOrderSecondaryPairVolume: number; //summarizedOrderSecondaryPairVolume
 }
 
 function calculateAveragePriceToStep(
@@ -325,10 +229,6 @@ function calculateOrderTargetPriceToStep(
     orderAveragePrice: number,
     targetProfit: number
 ): number {
-    console.table({
-        orderAveragePrice,
-        targetProfit,
-    });
     const calculate =
         orderAveragePrice + (orderAveragePrice + targetProfit * 0.01) / 100;
 
@@ -339,7 +239,7 @@ function calculateOrderTargetDeviationToStep(
     orderPriceToStep: number,
     orderTargetPrice: number
 ): number {
-    // OLS in regression analysis (data approximation)???????????????
+    // Ordinary Least Squares regression ???????????????
     const calculate =
         ((orderTargetPrice - orderPriceToStep) / orderPriceToStep) * 100;
     return parseFloat(calculate.toFixed(8));
@@ -351,4 +251,61 @@ function calculateSummarizedPairVolumeToStep(): Function {
         summ = summ + pairVolume;
         return parseFloat(summ.toFixed(8));
     };
+}
+
+/**
+ * ________________________________________________
+ * CHECKING SYMBOL INFO
+ * ________________________________________________
+ * */
+
+async function checkingSymbolInfo(
+    symbol: string,
+    startOrderVolume: number
+): Promise<undefined | number> {
+    const minQty = await getMinQty(symbol);
+    const tickerInfo = await getTickers(symbol);
+    let tickerPrice: string;
+    if (!tickerInfo || !tickerInfo.list[0]) {
+        console.error(`request failed: undefined coin info - ${symbol}`);
+        return;
+    } else {
+        tickerPrice = tickerInfo.list[0].lastPrice;
+    }
+
+    if (!minQty) {
+        console.error(`request failed: bad minQty of ${symbol}`);
+        return;
+    }
+
+    if (startOrderVolume && startOrderVolume / +tickerPrice <= +minQty) {
+        console.error(
+            `request failed: starting order qty = ${parseFloat(
+                (startOrderVolume / +tickerPrice).toFixed(8)
+            )}, min qty = ${minQty}`
+        );
+        return;
+    }
+    return +tickerPrice;
+}
+
+/**
+ * ________________________________________________
+ * CHECKING ERRORS
+ * ________________________________________________
+ * */
+
+function checkingBotConfigErrors(props: IBotConfig) {
+    return Object.values(props).some(
+        (element) =>
+            typeof element === 'object' ||
+            typeof element === 'boolean' ||
+            element === undefined ||
+            element === null ||
+            element.length !== undefined
+    );
+}
+
+function verifySymbol(symbol: string): boolean {
+    return Object.values(verifiedSymbols).some((element) => element === symbol);
 }
