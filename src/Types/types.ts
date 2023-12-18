@@ -25,6 +25,7 @@ export interface IBotSetupConfig {
     setInsuranceOrderStepsMultiplier(props: number): void;
     setInsuranceOrderVolumeUSDT(props: number): void;
     setInsuranceOrderVolumeMultiplier(props: number): void;
+    getInsuranceOrderSteps(): number;
 }
 
 export enum VerifiedSymbols {
@@ -76,6 +77,6 @@ export interface IGetBalance {
 export interface IPlaceOrder {
     side: 'Buy' | 'Sell';
     symbol: string;
-    qty: string;
-    price: string;
+    qty: number;
+    price: number;
 }

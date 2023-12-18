@@ -1,6 +1,8 @@
 import { editBotConfig } from './Bot/botConfig.js';
-import { getBotStrategy } from './Bot/getBotStrategy.js';
+import { trade } from './Bot/trade.js';
 
 editBotConfig.setInsuranceOrderSteps(10);
-const strategyKAS = await getBotStrategy('KAS');
-console.table(strategyKAS);
+// const strategyKAS = await getBotStrategy('KAS');
+
+trade('KAS');
+// console.table(strategyKAS);

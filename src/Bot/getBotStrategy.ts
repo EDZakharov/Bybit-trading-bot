@@ -1,12 +1,12 @@
 import { generateBotStrategy } from '../Strategies/DCA.js';
-import { VerifiedSymbols } from '../Types/types.js';
+import { IBuyOrdersStepsToGrid, VerifiedSymbols } from '../Types/types.js';
 import { botConfig } from './botConfig.js';
 
 const generatedStrategy = generateBotStrategy(botConfig);
 
 export const getBotStrategy = async function (
     symbol: string
-): Promise<[] | undefined> {
+): Promise<Array<IBuyOrdersStepsToGrid> | undefined> {
     const validatedSymbolIndex = Object.keys(VerifiedSymbols).findIndex(
         (symbolName) => symbolName === symbol
     );
@@ -15,5 +15,10 @@ export const getBotStrategy = async function (
         return;
     }
     const correctSymbol = Object.values(VerifiedSymbols)[validatedSymbolIndex];
-    return generatedStrategy(correctSymbol);
+    const result: Array<IBuyOrdersStepsToGrid> = await generatedStrategy(
+        correctSymbol
+    );
+    console.table(result);
+
+    return result;
 };

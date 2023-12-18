@@ -42,4 +42,8 @@ export const editBotConfig: IBotSetupConfig = {
     setInsuranceOrderStepsMultiplier(insuranceOrderStepsMultiplier = 1.59) {
         botConfig.insuranceOrderStepsMultiplier = insuranceOrderStepsMultiplier;
     },
+
+    getInsuranceOrderSteps() {
+        return botConfig.insuranceOrderSteps;
+    },
 };
