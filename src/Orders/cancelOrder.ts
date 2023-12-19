@@ -12,7 +12,7 @@ export const cancelOrder = async (
         return;
     }
 
-    if (orderId.length === 0) {
+    if (orderId && orderId.length === 0) {
         console.error(
             `request failed: wrong orderId length - ${orderId.length}`
         );

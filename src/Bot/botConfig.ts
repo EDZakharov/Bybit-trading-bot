@@ -5,7 +5,7 @@ export const botConfig: IBotConfig = {
     startOrderVolumeUSDT: 30,
     insuranceOrderVolumeUSDT: 30,
     insuranceOrderSteps: 10,
-    insuranceOrderPriceDeviationPercent: 0.4,
+    insuranceOrderPriceDeviationPercent: 0.1,
     insuranceOrderVolumeMultiplier: 0.75,
     insuranceOrderStepsMultiplier: 1.59,
 };
