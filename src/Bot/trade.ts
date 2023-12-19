@@ -8,53 +8,87 @@ export async function trade(coin: string): Promise<void> {
     let strategy = await getBotStrategy(coin);
     if (!strategy || strategy.length === 0) return;
 
-    let step: IBuyOrdersStepsToGrid;
-    START: for (step of strategy) {
-        //DO WHILE?
-        console.log('start');
-        const currentStep = step.step;
+    let order: IBuyOrdersStepsToGrid;
+    // let currentStep: number;
+    let currentPrice: number = 0;
+    let onPosition: boolean = false;
 
-        const currentStep1 = step;
+    START_TRADE: for (order of strategy) {
         const allStepsCount = editBotConfig.getInsuranceOrderSteps();
         const orders: Array<IBuyOrdersStepsToGrid> = [...strategy];
-
+        const allOrdersPriceToStep = orders.map((el) => el.orderPriceToStep);
+        let nextInsurancePriceToStep = allOrdersPriceToStep[order.step + 1];
+        const balanceUSDT = await getBalance('USDT');
         const summarizedOrderBasePairVolume = orders.find(
             (order: IBuyOrdersStepsToGrid) => order.step === allStepsCount
         )?.summarizedOrderBasePairVolume;
-
-        const orderSecondaryPairVolume = orders.find(
-            (order: IBuyOrdersStepsToGrid) => order.step === currentStep
-        )?.orderSecondaryPairVolume;
-
-        const orderTargetPrice = orders.find(
-            (order: IBuyOrdersStepsToGrid) => order.step === currentStep
-        )?.orderTargetPrice;
-        if (!summarizedOrderBasePairVolume) return;
-        if (!orderSecondaryPairVolume) return;
-        if (!orderTargetPrice) return;
-        const balanceUSDT = await getBalance('USDT');
+        const orderSecondaryPairVolume = order.orderSecondaryPairVolume;
+        const orderTargetPrice = order.orderTargetPrice;
+        if (!nextInsurancePriceToStep) {
+            console.log('all insurance orders was executed');
+            nextInsurancePriceToStep = currentPrice / 100;
+        }
         if (
+            !orderSecondaryPairVolume ||
+            !orderTargetPrice ||
+            !summarizedOrderBasePairVolume ||
             !balanceUSDT ||
-            +balanceUSDT.walletBalance < summarizedOrderBasePairVolume
+            +balanceUSDT < summarizedOrderBasePairVolume
         ) {
+            console.error(`request failed: something went wrong`);
             return;
         }
 
-        const price = await getTickers('KASUSDT');
-        if (!price || !price.list[0]) return;
+        EXECUTE_STEP: do {
+            const price = await getTickers('KASUSDT');
+            //UNDEFINED?
 
-        //TODO
-        if (+price.list[0].lastPrice >= step.orderPriceToStep) {
+            if (!price || !price.list[0]) {
+                //retry
+                //continue
+                return;
+            }
+            currentPrice = +price.list[0].lastPrice;
+
+            // PLACE LIMIT ORDER & SL&TP ORDERS
+            if (!onPosition) {
+                //orderiD = placeOrder({
+                //     side: 'Buy',
+                //     symbol: 'KASUSDT',
+                //     qty: parseFloat(orderSecondaryPairVolume.toFixed(0)),
+                //     price: parseFloat(orderTargetPrice.toFixed(5)),
+                // });
+
+                onPosition = true;
+                console.table({
+                    position: 'buy',
+                    price: currentPrice,
+                    nextStep: nextInsurancePriceToStep,
+                });
+            }
+
+            //CANCEL TP ORDER & PLACE NEXT INSURANCE ORDER
+            if (onPosition && currentPrice < nextInsurancePriceToStep) {
+                onPosition = false;
+                console.table({
+                    position: 'next_step',
+                    price: currentPrice,
+                    nextStep: nextInsurancePriceToStep,
+                });
+            }
+
+            if (onPosition && currentPrice >= orderTargetPrice) {
+                onPosition = false;
+                console.table({
+                    position: 'sell-TP',
+                    price: currentPrice,
+                    nextStep: nextInsurancePriceToStep,
+                });
+            }
+
+            console.log(currentPrice);
             await sleep(5000);
-            console.log(currentStep1);
-            continue START;
-        }
-        // placeOrder({
-        //     side: 'Buy',
-        //     symbol: 'KASUSDT',
-        //     qty: parseFloat(orderSecondaryPairVolume.toFixed(0)),
-        //     price: parseFloat(orderTargetPrice.toFixed(5)),
-        // });
+        } while (currentPrice >= nextInsurancePriceToStep);
     }
 }
 function sleep(ms: number) {
