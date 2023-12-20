@@ -7,14 +7,15 @@ import {
     IGetTickerPrice,
 } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
+import { setAskBidTerminalLog } from '../Utils/setAskBidTerminalLog.js';
 import { sleep } from '../Utils/sleep.js';
 import { editBotConfig } from './botConfig.js';
 import { getBotStrategy } from './getBotStrategy.js';
 
 export async function trade(symbol: string): Promise<void> {
+    const askBidTerminal = setAskBidTerminalLog();
     let strategy = await getBotStrategy(symbol);
     if (!strategy || strategy.length === 0) return;
-
     let order: IBuyOrdersStepsToGrid;
     // let currentStep: number;
     let orderId: string = '';
@@ -22,15 +23,14 @@ export async function trade(symbol: string): Promise<void> {
     let onPosition: boolean = false;
     let profit: number = 0;
     let finish: boolean = false;
-    await sleep(1000);
-    START_TRADE: for (order of strategy) {
+    for (order of strategy) {
         if (finish) return;
 
         const allStepsCount = editBotConfig.getInsuranceOrderSteps();
         const orders: Array<IBuyOrdersStepsToGrid> = [...strategy];
         const allOrdersPriceToStep = orders.map((el) => el.orderPriceToStep);
         let nextInsurancePriceToStep = allOrdersPriceToStep[order.step + 1];
-        let balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT');
+        const balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT');
         const summarizedOrderBasePairVolume = orders.find(
             (order: IBuyOrdersStepsToGrid) => order.step === allStepsCount
         )?.summarizedOrderBasePairVolume;
@@ -61,16 +61,8 @@ export async function trade(symbol: string): Promise<void> {
             return;
         }
 
-        EXECUTE_STEP: do {
+        do {
             let result: IGetTickerPrice = await retry(getTickers, symbol);
-            //UNDEFINED?
-
-            // if (!price || !price.list[0]) {
-            //     price = await retry(getTickers, 'KASUSDT');
-            //     //continue
-            //     if (!price || !price.list[0]) return;
-            //     currentPrice = +price.list[0].lastPrice;
-            // }
             currentPrice = +result.list[0].lastPrice;
 
             // PLACE LIMIT ORDER & TP ORDER
@@ -92,7 +84,7 @@ export async function trade(symbol: string): Promise<void> {
                 //     price: parseFloat(orderTargetPrice.toFixed(5)), //???
                 // });
                 console.log(
-                    `placeOrder Buy Market ${Math.floor(
+                    `place Buy limit order ${Math.floor(
                         orderSecondaryPairVolume
                     )} KASUSDT - ${orderPriceToStep.toFixed(5)}`
                 );
@@ -106,7 +98,7 @@ export async function trade(symbol: string): Promise<void> {
                 //     price: parseFloat(orderTargetPrice.toFixed(5)),
                 // });
                 console.log(
-                    `placeOrder Sell Limit ${Math.floor(
+                    `place take profit order ${Math.floor(
                         summarizedOrderSecondaryPairVolume
                     )} KASUSDT - ${parseFloat(orderTargetPrice.toFixed(5))}`
                 );
@@ -125,7 +117,7 @@ export async function trade(symbol: string): Promise<void> {
             //CANCEL TP ORDER & NEXT STEP
             if (onPosition && currentPrice < nextInsurancePriceToStep) {
                 await cancelOrder('KASUSDT', orderId);
-                console.log('cancelOrder');
+                console.log(`cancel order ${orderId}`);
 
                 onPosition = false;
                 console.table({
@@ -137,7 +129,7 @@ export async function trade(symbol: string): Promise<void> {
             if (onPosition && currentPrice >= orderTargetPrice) {
                 onPosition = false;
                 console.table({
-                    position: 'sell-TP',
+                    position: 'take_profit',
                     price: currentPrice,
                 });
                 profit = orderTargetPrice - orderPriceToStep;
@@ -146,14 +138,12 @@ export async function trade(symbol: string): Promise<void> {
             }
 
             const date = new Date();
-
+            askBidTerminal(date, currentPrice);
             console.log(
-                `${date.getHours()}:${date.getMinutes()}:${
-                    date.getSeconds() < 10
-                        ? '0' + date.getSeconds()
-                        : date.getSeconds()
-                }`,
-                currentPrice
+                Math.abs(
+                    orderTargetPrice * summarizedOrderSecondaryPairVolume -
+                        orderPriceToStep * summarizedOrderSecondaryPairVolume
+                )
             );
 
             await sleep(5000);
