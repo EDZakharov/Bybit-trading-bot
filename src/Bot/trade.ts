@@ -47,7 +47,7 @@ export async function trade(coin: string): Promise<void> {
             !balanceUSDT ||
             +balanceUSDT < summarizedOrderBasePairVolume
         ) {
-            console.error(`request failed: something went wrong`);
+            console.error(`request failed: something went wrong1`);
             return;
         }
 
@@ -102,7 +102,7 @@ export async function trade(coin: string): Promise<void> {
                 if (takeProfitOrder && takeProfitOrder.result) {
                     orderId = takeProfitOrder.result.orderId;
                 } else {
-                    console.error(`request failed: something went wrong`);
+                    console.error(`request failed: something went wrong2`);
                     return;
                 }
             }

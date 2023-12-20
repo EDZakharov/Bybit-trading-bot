@@ -39,7 +39,7 @@ export const cancelOrder = async (
         console.dir(`${symbol} order with id ${result.orderId} was canceled`);
         return result;
     } catch (error) {
-        console.error('request failed: something went wrong');
+        console.error(error);
         return;
     }
 };
