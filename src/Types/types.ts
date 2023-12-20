@@ -44,7 +44,6 @@ export enum VerifiedSymbols {
     UNI = 'UNIUSDT',
     XRP = 'XRPUSDT',
     KAS = 'KASUSDT',
-    YFI = 'YFIUSDT',
 }
 
 export interface IBuyOrdersStepsToGrid {

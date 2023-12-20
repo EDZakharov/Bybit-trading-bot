@@ -1,5 +1,6 @@
 import { getBalance } from '../Account/getBalance.js';
 import { getTickers } from '../Market/getTickers.js';
+import { placeOrder } from '../Orders/placeOrder.js';
 import { IBuyOrdersStepsToGrid } from '../Types/types.js';
 import { editBotConfig } from './botConfig.js';
 import { getBotStrategy } from './getBotStrategy.js';
@@ -43,18 +44,18 @@ export async function trade(coin: string): Promise<void> {
         const price = await getTickers('KASUSDT');
         if (!price || !price.list[0]) return;
 
-        //TODO
-        if (+price.list[0].lastPrice >= step.orderPriceToStep) {
-            await sleep(5000);
-            console.log(currentStep1);
-            continue START;
-        }
-        // placeOrder({
-        //     side: 'Buy',
-        //     symbol: 'KASUSDT',
-        //     qty: parseFloat(orderSecondaryPairVolume.toFixed(0)),
-        //     price: parseFloat(orderTargetPrice.toFixed(5)),
-        // });
+        // //TODO
+        // if (+price.list[0].lastPrice >= step.orderPriceToStep) {
+        //     await sleep(5000);
+        //     // console.log(currentStep1);
+        //     continue START;
+        // }
+        placeOrder({
+            side: 'Buy',
+            symbol: 'KASUSDT',
+            qty: parseFloat(orderSecondaryPairVolume.toFixed(0)),
+            price: parseFloat(orderTargetPrice.toFixed(5)),
+        });
     }
 }
 function sleep(ms: number) {
