@@ -6,3 +6,12 @@ editBotConfig.setInsuranceOrderSteps(10);
 
 trade('KAS');
 // console.table(strategyKAS);
+
+// const data = await placeOrder({
+//     side: 'Buy',
+//     symbol: 'KASUSDT',
+//     qty: 30,
+//     price: 0.05,
+// });
+
+// console.log(data?.result);

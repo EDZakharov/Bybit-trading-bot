@@ -16,7 +16,7 @@ export const getTickers = async (
         }
         return result;
     } catch (error) {
-        console.error('request failed: something went wrong');
+        console.error(`6request failed: something went wrong ${error}`);
         return;
     }
 };

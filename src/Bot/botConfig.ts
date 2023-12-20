@@ -1,7 +1,7 @@
 import { IBotConfig, IBotSetupConfig } from '../Types/types.js';
 
 export const botConfig: IBotConfig = {
-    targetProfitPercent: 1,
+    targetProfitPercent: 0.5,
     startOrderVolumeUSDT: 30,
     insuranceOrderVolumeUSDT: 30,
     insuranceOrderSteps: 10,

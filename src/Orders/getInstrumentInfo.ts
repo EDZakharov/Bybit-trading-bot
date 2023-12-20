@@ -14,7 +14,7 @@ export const getInstrumentInfo = async (symbol: string) => {
         });
         return result;
     } catch (error) {
-        console.error('request failed: ', error);
+        console.error('2request failed: ', error);
         return;
     }
 };

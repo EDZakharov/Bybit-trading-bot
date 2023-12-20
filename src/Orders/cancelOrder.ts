@@ -12,7 +12,7 @@ export const cancelOrder = async (
         return;
     }
 
-    if (orderId.length === 0) {
+    if (orderId && orderId.length === 0) {
         console.error(
             `request failed: wrong orderId length - ${orderId.length}`
         );
@@ -39,7 +39,7 @@ export const cancelOrder = async (
         console.dir(`${symbol} order with id ${result.orderId} was canceled`);
         return result;
     } catch (error) {
-        console.error('request failed: something went wrong');
+        console.error(`1request failed: something went wrong ${error}`);
         return;
     }
 };
