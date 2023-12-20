@@ -28,25 +28,6 @@ export interface IBotSetupConfig {
     getInsuranceOrderSteps(): number;
 }
 
-export enum VerifiedSymbols {
-    BTC = 'BTCUSDT',
-    ADA = 'ADAUSDT',
-    DOGE = 'DOGEUSDT',
-    DOT = 'DOTUSDT',
-    LINK = 'LINKUSDT',
-    LTC = 'LTCUSDT',
-    MATIC = 'MATICUSDT',
-    RVN = 'RVNUSDT',
-    SOL = 'SOLUSDT',
-    SUSHI = 'SUSHIUSDT',
-    TRX = 'TRXUSDT',
-    TWT = 'TWTUSDT',
-    UNI = 'UNIUSDT',
-    XRP = 'XRPUSDT',
-    KAS = 'KASUSDT',
-    YFI = 'YFIUSDT',
-}
-
 export interface IBuyOrdersStepsToGrid {
     symbol?: string;
     step: number;
@@ -80,4 +61,46 @@ export interface IPlaceOrder {
     symbol: string;
     qty: number;
     price: number;
+}
+
+export interface IGetBalanceResult {
+    rateLimitApi: undefined;
+    retCode: number;
+    retMsg: string;
+    result: {
+        accountType: string;
+        bizType: number;
+        accountId: string;
+        memberId: string;
+        balance: {
+            coin: string;
+            walletBalance: string;
+            transferBalance: string;
+            bonus: string;
+            transferSafeAmount: string;
+            ltvTransferSafeAmount: string;
+        };
+    };
+    retExtInfo: {};
+    time: number;
+}
+
+export interface IGetTickerPrice {
+    category: string;
+    list: [
+        {
+            symbol: string;
+            bid1Price: string;
+            bid1Size: string;
+            ask1Price: string;
+            ask1Size: string;
+            lastPrice: string;
+            prevPrice24h: string;
+            price24hPcnt: string;
+            highPrice24h: string;
+            lowPrice24h: string;
+            turnover24h: string;
+            volume24h: string;
+        }
+    ];
 }

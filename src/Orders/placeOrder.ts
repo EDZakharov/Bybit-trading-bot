@@ -39,7 +39,7 @@ export const placeOrder = async ({
                   );
         }
     } catch (error) {
-        console.error('request failed: ', error);
+        console.error('0request failed: ', error);
     }
     return data;
 };

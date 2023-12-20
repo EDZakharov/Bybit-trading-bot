@@ -1,5 +1,6 @@
+import { findAndVerifySymbol } from '../Market/getVerifiedSymbols.js';
 import { generateBotStrategy } from '../Strategies/DCA.js';
-import { IBuyOrdersStepsToGrid, VerifiedSymbols } from '../Types/types.js';
+import { IBuyOrdersStepsToGrid } from '../Types/types.js';
 import { botConfig } from './botConfig.js';
 
 const generatedStrategy = generateBotStrategy(botConfig);
@@ -7,17 +8,15 @@ const generatedStrategy = generateBotStrategy(botConfig);
 export const getBotStrategy = async function (
     symbol: string
 ): Promise<Array<IBuyOrdersStepsToGrid> | undefined> {
-    const validatedSymbolIndex = Object.keys(VerifiedSymbols).findIndex(
-        (symbolName) => symbolName === symbol
-    );
-    if (validatedSymbolIndex === -1) {
+    const validatedSymbol = findAndVerifySymbol(symbol);
+    if (!validatedSymbol) {
         console.error(`request failed: bad symbol ${symbol}`);
         return;
     }
-    const correctSymbol = Object.values(VerifiedSymbols)[validatedSymbolIndex];
     const result: Array<IBuyOrdersStepsToGrid> = await generatedStrategy(
-        correctSymbol
+        symbol
     );
+
     console.table(result);
 
     return result;

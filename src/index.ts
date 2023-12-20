@@ -4,7 +4,7 @@ import { trade } from './Bot/trade.js';
 editBotConfig.setInsuranceOrderSteps(10);
 // const strategyKAS = await getBotStrategy('KAS');
 
-trade('KAS');
+trade('KASUSDT');
 // console.table(strategyKAS);
 
 // const data = await placeOrder({

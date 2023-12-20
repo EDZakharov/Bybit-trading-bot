@@ -7,14 +7,15 @@ export const getInstrumentInfo = async (symbol: string) => {
         console.error(`request failed: undefined coin`);
         return;
     }
+
     try {
-        const { result } = await restClient.getInstrumentsInfo({
+        const result = await restClient.getInstrumentsInfo({
             category: 'spot',
             symbol,
         });
         return result;
     } catch (error) {
-        console.error('request failed: ', error);
+        console.error('2request failed: ', error);
         return;
     }
 };

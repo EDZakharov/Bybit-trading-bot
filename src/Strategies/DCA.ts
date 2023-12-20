@@ -5,6 +5,7 @@ import {
     IBuyOrdersStepsToGrid,
     IWeightedSum,
 } from '../Types/types.js';
+import { retry } from '../Utils/retry.js';
 
 export const generateBotStrategy = (botConfig: IBotConfig): Function => {
     let buyOrdersStepsToGrid: IBuyOrdersStepsToGrid[] = [];
@@ -256,8 +257,8 @@ async function checkingSymbolInfo(
     startOrderVolume: number
 ): Promise<undefined | number> {
     try {
-        const minQty = await getMinQty(symbol);
-        const tickerInfo = await getTickers(symbol);
+        const minQty = await retry(getMinQty, symbol);
+        const tickerInfo = await retry(getTickers, symbol);
         let tickerPrice: string;
 
         if (!tickerInfo || !tickerInfo.list[0]) {

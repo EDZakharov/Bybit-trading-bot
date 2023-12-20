@@ -10,13 +10,14 @@ export const getTickers = async (
             category: 'spot',
             symbol,
         });
+
         if (!result.list) {
             console.error(`request failed: undefined coin - ${symbol}`);
             return;
         }
         return result;
     } catch (error) {
-        console.error('request failed: something went wrong');
+        console.error(`6request failed: something went wrong ${error}`);
         return;
     }
 };
