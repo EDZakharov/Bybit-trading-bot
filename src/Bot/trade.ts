@@ -1,6 +1,7 @@
 import { getBalance } from '../Account/getBalance.js';
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
+import { placeOrder } from '../Orders/placeOrder.js';
 import {
     IBuyOrdersStepsToGrid,
     IGetBalanceResult,
@@ -25,7 +26,6 @@ export async function trade(symbol: string): Promise<void> {
     let finish: boolean = false;
     for (order of strategy) {
         if (finish) return;
-
         const allStepsCount = editBotConfig.getInsuranceOrderSteps();
         const orders: Array<IBuyOrdersStepsToGrid> = [...strategy];
         const allOrdersPriceToStep = orders.map((el) => el.orderPriceToStep);
@@ -61,8 +61,11 @@ export async function trade(symbol: string): Promise<void> {
             return;
         }
 
-        do {
+        START_STRING: do {
             let result: IGetTickerPrice = await retry(getTickers, symbol);
+            if (!result) {
+                continue START_STRING;
+            }
             currentPrice = +result.list[0].lastPrice;
 
             // PLACE LIMIT ORDER & TP ORDER
@@ -75,43 +78,43 @@ export async function trade(symbol: string): Promise<void> {
                     nextStep: nextInsurancePriceToStep,
                 });
 
-                // //PLACE START ORDER
-                // await placeOrder({
-                //     orderType: 'Limit',
-                //     side: 'Buy',
-                //     symbol,
-                //     qty: Math.ceil(orderSecondaryPairVolume),
-                //     price: parseFloat(orderTargetPrice.toFixed(5)), //???
-                // });
+                //     //PLACE START ORDER
+                await placeOrder({
+                    orderType: 'Limit',
+                    side: 'Buy',
+                    symbol,
+                    qty: Math.ceil(orderSecondaryPairVolume),
+                    price: parseFloat(orderTargetPrice.toFixed(5)), //???
+                });
                 console.log(
                     `place Buy limit order ${Math.floor(
                         orderSecondaryPairVolume
                     )} KASUSDT - ${orderPriceToStep.toFixed(5)}`
                 );
 
-                // //PLACE TP ORDER
-                // const takeProfitOrder = await placeOrder({
-                //     orderType: 'Limit',
-                //     side: 'Sell',
-                //     symbol,
-                //     qty: Math.floor(summarizedOrderSecondaryPairVolume),
-                //     price: parseFloat(orderTargetPrice.toFixed(5)),
-                // });
+                //PLACE TP ORDER
+                const takeProfitOrder = await placeOrder({
+                    orderType: 'Limit',
+                    side: 'Sell',
+                    symbol,
+                    qty: Math.floor(summarizedOrderSecondaryPairVolume),
+                    price: parseFloat(orderTargetPrice.toFixed(5)),
+                });
                 console.log(
                     `place take profit order ${Math.floor(
                         summarizedOrderSecondaryPairVolume
                     )} KASUSDT - ${parseFloat(orderTargetPrice.toFixed(5))}`
                 );
 
-                // //SET TP ORDER ID
-                // if (takeProfitOrder && takeProfitOrder.result) {
-                //     orderId = takeProfitOrder.result.orderId;
-                // } else {
-                //     console.error(
-                //         `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${orderId} || ${takeProfitOrder}`
-                //     );
-                //     return;
-                // }
+                //     //SET TP ORDER ID
+                if (takeProfitOrder && takeProfitOrder.result) {
+                    orderId = takeProfitOrder.result.orderId;
+                } else {
+                    console.error(
+                        `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${orderId} || ${takeProfitOrder}`
+                    );
+                    return;
+                }
             }
 
             //CANCEL TP ORDER & NEXT STEP
@@ -128,27 +131,23 @@ export async function trade(symbol: string): Promise<void> {
             //EXECUTE TP ORDER
             if (onPosition && currentPrice >= orderTargetPrice) {
                 onPosition = false;
+                profit = Math.abs(
+                    orderTargetPrice * summarizedOrderSecondaryPairVolume -
+                        orderPriceToStep * summarizedOrderSecondaryPairVolume
+                );
                 console.table({
                     position: 'take_profit',
                     price: currentPrice,
+                    profit,
                 });
-                profit = orderTargetPrice - orderPriceToStep;
+
                 finish = true;
                 break;
             }
 
             const date = new Date();
             askBidTerminal(date, currentPrice);
-            console.log(
-                Math.abs(
-                    orderTargetPrice * summarizedOrderSecondaryPairVolume -
-                        orderPriceToStep * summarizedOrderSecondaryPairVolume
-                )
-            );
-
             await sleep(5000);
         } while (currentPrice >= nextInsurancePriceToStep);
     }
-
-    console.log(profit);
 }
