@@ -1,7 +1,6 @@
 import { getBalance } from '../Account/getBalance.js';
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
-import { placeOrder } from '../Orders/placeOrder.js';
 import {
     IBuyOrdersStepsToGrid,
     IGetBalanceResult,
@@ -79,13 +78,13 @@ export async function trade(symbol: string): Promise<void> {
                 });
 
                 //     //PLACE START ORDER
-                await placeOrder({
-                    orderType: 'Limit',
-                    side: 'Buy',
-                    symbol,
-                    qty: Math.ceil(orderSecondaryPairVolume),
-                    price: parseFloat(orderTargetPrice.toFixed(5)), //???
-                });
+                // await placeOrder({
+                //     orderType: 'Limit',
+                //     side: 'Buy',
+                //     symbol,
+                //     qty: Math.ceil(orderSecondaryPairVolume),
+                //     price: parseFloat(orderTargetPrice.toFixed(5)), //???
+                // });
                 console.log(
                     `place Buy limit order ${Math.floor(
                         orderSecondaryPairVolume
@@ -93,13 +92,13 @@ export async function trade(symbol: string): Promise<void> {
                 );
 
                 //PLACE TP ORDER
-                const takeProfitOrder = await placeOrder({
-                    orderType: 'Limit',
-                    side: 'Sell',
-                    symbol,
-                    qty: Math.floor(summarizedOrderSecondaryPairVolume),
-                    price: parseFloat(orderTargetPrice.toFixed(5)),
-                });
+                // const takeProfitOrder = await placeOrder({
+                //     orderType: 'Limit',
+                //     side: 'Sell',
+                //     symbol,
+                //     qty: Math.floor(summarizedOrderSecondaryPairVolume),
+                //     price: parseFloat(orderTargetPrice.toFixed(5)),
+                // });
                 console.log(
                     `place take profit order ${Math.floor(
                         summarizedOrderSecondaryPairVolume
@@ -107,14 +106,14 @@ export async function trade(symbol: string): Promise<void> {
                 );
 
                 //     //SET TP ORDER ID
-                if (takeProfitOrder && takeProfitOrder.result) {
-                    orderId = takeProfitOrder.result.orderId;
-                } else {
-                    console.error(
-                        `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${orderId} || ${takeProfitOrder}`
-                    );
-                    return;
-                }
+                // if (takeProfitOrder && takeProfitOrder.result) {
+                //     orderId = takeProfitOrder.result.orderId;
+                // } else {
+                //     console.error(
+                //         `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${orderId} || ${takeProfitOrder}`
+                //     );
+                //     return;
+                // }
             }
 
             //CANCEL TP ORDER & NEXT STEP
