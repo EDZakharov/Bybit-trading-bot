@@ -1,17 +1,15 @@
 import { editBotConfig } from './Bot/botConfig.js';
 import { trade } from './Bot/trade.js';
+import { IBotConfig } from './Types/types.js';
 
-editBotConfig.setInsuranceOrderSteps(10);
-// const strategyKAS = await getBotStrategy('KAS');
-trade('KASUSDT');
+async function startBot(symbols: Array<string>, editOptions?: IBotConfig) {
+    if (editOptions) {
+        editBotConfig.setInsuranceOrderSteps(editOptions.insuranceOrderSteps);
+    }
 
-// console.table(strategyKAS);
+    for (const coinName of symbols) {
+        trade(coinName);
+    }
+}
 
-// const data = await placeOrder({
-//     side: 'Buy',
-//     symbol: 'KASUSDT',
-//     qty: 30,
-//     price: 0.05,
-// });
-
-// console.log(data?.result);
+startBot(['KASUSDT']);

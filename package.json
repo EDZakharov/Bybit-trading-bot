@@ -3,7 +3,7 @@
     "main": "index.ts",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "start": "nodemon build/src/index.js",
+        "start": "nodemon ./build/src/index.js",
         "check": "tsc"
     },
     "dependencies": {
