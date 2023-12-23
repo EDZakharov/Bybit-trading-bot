@@ -1,6 +1,6 @@
 {
     "type": "commonjs",
-    "main": "index.ts",
+    "main": "index.js",
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "start": "nodemon ./build/src/index.js",

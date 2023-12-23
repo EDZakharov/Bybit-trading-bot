@@ -8,7 +8,7 @@ WORKDIR /app
 
 USER node
 COPY --chown=node:node package.json package-lock.json* ./
-COPY ./build /app/
+COPY ./build ./app
 RUN npm install
 
 COPY --chown=node:node . .
