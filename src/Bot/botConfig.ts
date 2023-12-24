@@ -1,9 +1,9 @@
 import { IBotConfig, IBotSetupConfig } from '../Types/types.js';
 
 export const botConfig: IBotConfig = {
-    targetProfitPercent: 0.5,
-    startOrderVolumeUSDT: 30,
-    insuranceOrderVolumeUSDT: 30,
+    targetProfitPercent: 1,
+    startOrderVolumeUSDT: 10,
+    insuranceOrderVolumeUSDT: 10,
     insuranceOrderSteps: 10,
     insuranceOrderPriceDeviationPercent: 0.4,
     insuranceOrderVolumeMultiplier: 0.75,
@@ -15,11 +15,11 @@ export const editBotConfig: IBotSetupConfig = {
         botConfig.targetProfitPercent = targetProfitPercent;
     },
 
-    setStartOrderVolumeUSDT(startOrderVolumeUSDT = 30) {
+    setStartOrderVolumeUSDT(startOrderVolumeUSDT = 10) {
         botConfig.startOrderVolumeUSDT = startOrderVolumeUSDT;
     },
 
-    setInsuranceOrderVolumeUSDT(insuranceOrderVolumeUSDT = 30) {
+    setInsuranceOrderVolumeUSDT(insuranceOrderVolumeUSDT = 10) {
         botConfig.insuranceOrderVolumeUSDT = insuranceOrderVolumeUSDT;
     },
 
@@ -28,7 +28,7 @@ export const editBotConfig: IBotSetupConfig = {
     },
 
     setInsuranceOrderPriceDeviationPercent(
-        insuranceOrderPriceDeviationPercent = 0.3
+        insuranceOrderPriceDeviationPercent = 0.4
     ) {
         botConfig.insuranceOrderPriceDeviationPercent =
             insuranceOrderPriceDeviationPercent;

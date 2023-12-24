@@ -10,6 +10,7 @@ import {
 import { retry } from '../Utils/retry.js';
 import { setAskBidTerminalLog } from '../Utils/setAskBidTerminalLog.js';
 import { sleep } from '../Utils/sleep.js';
+import { terminalColors } from '../Utils/termColors.js';
 import { editBotConfig } from './botConfig.js';
 import { getBotStrategy } from './getBotStrategy.js';
 
@@ -30,7 +31,7 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
     const orders: Array<IBuyOrdersStepsToGrid> = [...strategy];
     const allOrdersPriceToStep = orders.map((el) => el.orderPriceToStep);
 
-    let balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT');
+    let balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT'); //getBalance
     if (
         !summarizedOrderBasePairVolume ||
         !balanceUSDT ||
@@ -41,17 +42,18 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
     }
     const currentUsedBalance = summarizedOrderBasePairVolume * length;
     if (currentUsedBalance > +balanceUSDT.result.balance.walletBalance) {
-        console.error(
-            `request failed: Bad balance ${currentUsedBalance} > ${balanceUSDT.result.balance.walletBalance}`
+        console.warn(
+            `${terminalColors.BgRed}%s${terminalColors.Reset}`,
+            `Warn! Bot needs ${currentUsedBalance}. Your balance ${balanceUSDT.result.balance.walletBalance}. Add USDT in your wallet to trade safety!`
+            //TODO add sendWarnToClient
         );
-        return false;
     }
 
     for (order of strategy) {
         if (finish) return true;
 
         let nextInsurancePriceToStep = allOrdersPriceToStep[order.step + 1];
-        balanceUSDT = await retry(getBalance, 'USDT');
+        // balanceUSDT = await retry(getBalance, 'USDT');
         summarizedOrderBasePairVolume = [...strategy][allStepsCount]
             ?.summarizedOrderBasePairVolume;
         const orderSecondaryPairVolume = order.orderSecondaryPairVolume;
@@ -70,16 +72,10 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
             !summarizedOrderSecondaryPairVolume ||
             !orderSecondaryPairVolume ||
             !orderTargetPrice ||
-            !summarizedOrderBasePairVolume ||
-            !balanceUSDT ||
-            !balanceUSDT.result ||
-            !balanceUSDT.result.balance ||
-            !balanceUSDT.result.balance.walletBalance ||
-            +balanceUSDT.result.balance.walletBalance <
-                summarizedOrderBasePairVolume
+            !summarizedOrderBasePairVolume
         ) {
             console.error(
-                `request failed: something went wrong ${summarizedOrderSecondaryPairVolume} || ${orderSecondaryPairVolume} || ${orderTargetPrice} || ${summarizedOrderBasePairVolume} || ${balanceUSDT}`
+                `request failed: something went wrong ${summarizedOrderSecondaryPairVolume} || ${orderSecondaryPairVolume} || ${orderTargetPrice} || ${summarizedOrderBasePairVolume}`
             );
 
             return false;
@@ -111,9 +107,7 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
                     price: currentPrice,
                 });
                 console.log(
-                    `place buy market order ${Math.floor(
-                        orderSecondaryPairVolume
-                    )} ${symbol} - ${orderPriceToStep.toFixed(5)}`
+                    `place buy market order ${orderSecondaryPairVolume} ${symbol} - ${orderPriceToStep}`
                 );
 
                 // PLACE TP ORDER
@@ -126,9 +120,7 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
                     orderId: buyOrder?.result.orderId,
                 });
                 console.log(
-                    `place limit take profit order ${Math.floor(
-                        summarizedOrderSecondaryPairVolume
-                    )} ${symbol} - ${parseFloat(orderTargetPrice.toFixed(5))}`
+                    `place limit take profit order ${summarizedOrderSecondaryPairVolume} ${symbol} - ${orderTargetPrice}`
                 );
 
                 //SET TP ORDER ID

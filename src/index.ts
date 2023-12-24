@@ -15,11 +15,30 @@ async function startBot(symbols: Array<string>, editOptions: any) {
         loop(coinName, symbols.length);
     }
 }
-// 'KASUSDT',"BTCUSDT","XRPUSDT","UNIUSDT"
-startBot(['DOTUSDT', 'BTCUSDT', 'ADAUSDT', 'TWTUSDT'], {
-    // insuranceOrderPriceDeviationPercent: 0.1,
-    // targetProfitPercent: 0.1,
-});
+// 'KASUSDT',"BTCUSDT","XRPUSDT","UNIUSDT","DOGEUSDT","SOLUSDT","TWTUSDT","RVNUSDT","MATICUSDT",
+startBot(
+    [
+        'BTCUSDT',
+        'ADAUSDT',
+        'DOGEUSDT',
+        'DOTUSDT',
+        // 'LINKUSDT',
+        'LTCUSDT',
+        'MATICUSDT',
+        'RVNUSDT',
+        'SOLUSDT',
+        // 'SUSHIUSDT',
+        'TRXUSDT',
+        'TWTUSDT',
+        'UNIUSDT',
+        'XRPUSDT',
+        'KASUSDT',
+    ],
+    {
+        // insuranceOrderPriceDeviationPercent: 0.1,
+        // targetProfitPercent: 0.1,
+    }
+);
 
 async function loop(
     coinName: string,

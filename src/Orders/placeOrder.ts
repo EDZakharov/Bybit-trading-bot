@@ -106,25 +106,6 @@ export const placeOrder = async ({
             }
         }
 
-        // if (instrumentMinQty && +instrumentMinQty <= +qty) {
-        //     //TODO ERROR
-        //     data = await restClient.submitOrder({
-        //         category: 'spot',
-        //         orderType,
-        //         side,
-        //         symbol,
-        //         qty: `${qty}`,
-        //         price: `${price}`,
-        //     });
-        //     console.dir(data);
-        // } else {
-        //     !instrumentMinQty
-        //         ? console.error(`request failed: undefined coin - ${symbol}`)
-        //         : console.error(
-        //               `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
-        //           );
-        // }
-
         // console.log(instr.result.list[0]);
     } catch (error) {
         console.error('0request failed: ', error);
