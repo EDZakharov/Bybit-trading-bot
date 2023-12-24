@@ -61,6 +61,8 @@ export interface IPlaceOrder {
     symbol: string;
     qty: number;
     price: number;
+    marketUnit?: string;
+    orderId?: string;
 }
 
 export interface IGetBalanceResult {

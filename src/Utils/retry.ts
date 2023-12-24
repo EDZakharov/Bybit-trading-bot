@@ -1,11 +1,15 @@
 import { sleep } from './sleep.js';
 
-export async function retry(cb: Function, symbol: string): Promise<any> {
+export async function retry(
+    cb: Function,
+    symbol: string,
+    orderId?: string
+): Promise<any> {
     let result = undefined;
 
     while (!result) {
         try {
-            result = await cb(symbol);
+            result = await cb(symbol, orderId);
             if (!result) {
                 result = undefined;
             }
@@ -17,5 +21,5 @@ export async function retry(cb: Function, symbol: string): Promise<any> {
         await sleep(1000);
     }
 
-    return result && cb(symbol);
+    return result && cb(symbol, orderId);
 }

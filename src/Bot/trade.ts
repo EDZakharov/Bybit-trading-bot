@@ -55,6 +55,7 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
         summarizedOrderBasePairVolume = [...strategy][allStepsCount]
             ?.summarizedOrderBasePairVolume;
         const orderSecondaryPairVolume = order.orderSecondaryPairVolume;
+        const orderBasePairVolume = order.orderBasePairVolume;
         const summarizedOrderSecondaryPairVolume =
             order.summarizedOrderSecondaryPairVolume;
         const orderTargetPrice = order.orderTargetPrice;
@@ -71,6 +72,8 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
             !orderTargetPrice ||
             !summarizedOrderBasePairVolume ||
             !balanceUSDT ||
+            !balanceUSDT.result ||
+            !balanceUSDT.result.balance ||
             !balanceUSDT.result.balance.walletBalance ||
             +balanceUSDT.result.balance.walletBalance <
                 summarizedOrderBasePairVolume
@@ -100,15 +103,15 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
                 });
 
                 //PLACE START ORDER
-                await placeOrder({
-                    orderType: 'Limit',
+                const buyOrder = await placeOrder({
+                    orderType: 'Market',
                     side: 'Buy',
                     symbol,
-                    qty: Math.ceil(orderSecondaryPairVolume),
-                    price: parseFloat(orderTargetPrice.toFixed(5)), //???
+                    qty: orderBasePairVolume,
+                    price: currentPrice,
                 });
                 console.log(
-                    `place Buy limit order ${Math.floor(
+                    `place buy market order ${Math.floor(
                         orderSecondaryPairVolume
                     )} ${symbol} - ${orderPriceToStep.toFixed(5)}`
                 );
@@ -118,11 +121,12 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
                     orderType: 'Limit',
                     side: 'Sell',
                     symbol,
-                    qty: Math.floor(summarizedOrderSecondaryPairVolume),
-                    price: parseFloat(orderTargetPrice.toFixed(5)),
+                    qty: summarizedOrderSecondaryPairVolume,
+                    price: orderTargetPrice,
+                    orderId: buyOrder?.result.orderId,
                 });
                 console.log(
-                    `place take profit order ${Math.floor(
+                    `place limit take profit order ${Math.floor(
                         summarizedOrderSecondaryPairVolume
                     )} ${symbol} - ${parseFloat(orderTargetPrice.toFixed(5))}`
                 );

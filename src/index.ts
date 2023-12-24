@@ -15,10 +15,10 @@ async function startBot(symbols: Array<string>, editOptions: any) {
         loop(coinName, symbols.length);
     }
 }
-
-startBot(['BTCUSDT', 'LTCUSDT', 'XRPUSDT'], {
-    insuranceOrderPriceDeviationPercent: 0.1,
-    targetProfitPercent: 0.1,
+// 'KASUSDT',"BTCUSDT","XRPUSDT","UNIUSDT"
+startBot(['DOTUSDT', 'BTCUSDT', 'ADAUSDT', 'TWTUSDT'], {
+    // insuranceOrderPriceDeviationPercent: 0.1,
+    // targetProfitPercent: 0.1,
 });
 
 async function loop(
