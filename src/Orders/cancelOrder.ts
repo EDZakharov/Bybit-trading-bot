@@ -1,7 +1,7 @@
 import { OrderResultV5 } from 'bybit-api/lib/types/response/v5-trade.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
 import restClient from '../restClient.js';
-import { getActiveOrders } from './getActiveOrders.js';
+// import { getActiveOrders } from './getActiveOrders.js';
 
 export const cancelOrder = async (
     symbol: string,
@@ -20,15 +20,15 @@ export const cancelOrder = async (
     }
 
     try {
-        const activeOrders = await getActiveOrders(symbol);
-        const activeOrderId = activeOrders?.list.find(
-            (order) => order.orderId === orderId
-        );
+        // const activeOrders = await getActiveOrders(symbol);
+        // const activeOrderId = activeOrders?.list.find(
+        //     (order) => order.orderId === orderId
+        // );
 
-        if (!activeOrderId) {
-            console.error(`request failed: order with id ${orderId} not found`);
-            return;
-        }
+        // if (!activeOrderId) {
+        //     console.error(`request failed: order with id ${orderId} not found`);
+        //     return;
+        // }
 
         const { result } = await restClient.cancelOrder({
             category: 'spot',
@@ -39,7 +39,9 @@ export const cancelOrder = async (
         console.dir(`${symbol} order with id ${result.orderId} was canceled`);
         return result;
     } catch (error) {
-        console.error(`1request failed: something went wrong ${error}`);
+        console.error(
+            `cancelOrder: request failed: something went wrong ${error}`
+        );
         return;
     }
 };

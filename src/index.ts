@@ -25,17 +25,17 @@ startBot(
         // 'LINKUSDT',
         'LTCUSDT',
         'MATICUSDT',
-        'RVNUSDT',
+        // 'RVNUSDT',
         'SOLUSDT',
         // 'SUSHIUSDT',
         'TRXUSDT',
         'TWTUSDT',
-        'UNIUSDT',
+        // 'UNIUSDT',
         'XRPUSDT',
         'KASUSDT',
     ],
     {
-        // insuranceOrderPriceDeviationPercent: 0.1,
+        insuranceOrderPriceDeviationPercent: 0.1,
         // targetProfitPercent: 0.1,
     }
 );
