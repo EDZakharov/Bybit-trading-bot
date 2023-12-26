@@ -56,13 +56,12 @@ export interface IGetBalance {
 }
 
 export interface IPlaceOrder {
-    orderType: 'Limit' | 'Market';
-    side: 'Buy' | 'Sell';
     symbol: string;
     qty: number;
     price: number;
     marketUnit?: string;
-    orderId?: string;
+    orderId: string;
+    side: 'Buy' | 'Sell';
 }
 
 export interface IGetBalanceResult {
