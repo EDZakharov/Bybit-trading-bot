@@ -3,6 +3,7 @@
     "main": "index.js",
     "scripts": {
         "dev": "tsx watch src/index.ts",
+        "str": "tsx watch src/Strategies/RSI.ts",
         "start": "nodemon ./build/src/index.js",
         "check": "tsc"
     },

@@ -47,21 +47,14 @@ export const placeOrder = async ({
                 +getFeeRateSymbol.list[0].takerFeeRate * qty;
             let calculatedMakerSymbolFee =
                 +getFeeRateSymbol.list[0].makerFeeRate * qty;
-            let qtyWithFees =
-                qty - (calculatedTakerSymbolFee * 2 + calculatedMakerSymbolFee);
+            qty = qty - (calculatedTakerSymbolFee + calculatedMakerSymbolFee);
 
-            qty = calculateQty(qtyWithFees, basePrecision);
-
-            if (walletBalance < qty && walletBalance >= qty * 0.95) {
-                console.log('WTF: ', +balance.result.balance.walletBalance);
-                console.log('WTF: ', qty);
-
-                const diff = qty - walletBalance;
-                qty = qty - Math.abs(diff);
-
-                console.log('qtywithdiff ', qty);
+            if (walletBalance <= qty) {
+                qty = walletBalance - Number.EPSILON;
+                console.log('qtyNumber.EPSILON ', qty);
             }
-            if (+instrumentMinQty <= qtyWithFees) {
+            qty = calculateQty(qty, basePrecision);
+            if (+instrumentMinQty <= qty) {
                 data = await restClient.submitOrder({
                     category: 'spot',
                     orderType: 'Limit',
@@ -73,7 +66,7 @@ export const placeOrder = async ({
                 console.log(data);
                 return data;
             } else {
-                showError(instrumentMinQty, symbol, qtyWithFees);
+                showError(instrumentMinQty, symbol, qty);
                 return;
             }
         } else if (orderId.length === 0 && side === 'Buy') {
