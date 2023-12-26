@@ -5,9 +5,7 @@ import { IPlaceOrder } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
 import { roundToPrecision } from '../Utils/roundToPrecision.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
-import restClient from '../restClient.js';
 import { getInstrumentInfo } from './getInstrumentInfo.js';
-import { getMinQty } from './getMinQty.js';
 import { getOrdersHistoryById } from './getOrdersHistoryById.js';
 
 export const placeOrder = async ({
@@ -55,56 +53,56 @@ export const placeOrder = async ({
                 Math.floor(qty * Math.pow(10, +quotePrecision.length - 2)) /
                 Math.pow(10, +quotePrecision.length - 2);
         }
-        const instrumentMinQty = await retry(getMinQty, symbol);
-        switch (orderType) {
-            case 'Market': {
-                console.log('CASES: ', +qty / price);
-                if (+instrumentMinQty <= +qty / price) {
-                    data = await restClient.submitOrder({
-                        category: 'spot',
-                        orderType,
-                        side,
-                        symbol,
-                        qty: `${qty}`,
-                        price: `${price}`,
-                    });
-                } else {
-                    !instrumentMinQty
-                        ? console.error(
-                              `request failed: undefined coin - ${symbol}`
-                          )
-                        : console.error(
-                              `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
-                          );
-                }
-                console.log(data);
+        // const instrumentMinQty = await retry(getMinQty, symbol);
+        // switch (orderType) {
+        //     case 'Market': {
+        //         console.log('CASES: ', +qty / price);
+        //         if (+instrumentMinQty <= +qty / price) {
+        //             data = await restClient.submitOrder({
+        //                 category: 'spot',
+        //                 orderType,
+        //                 side,
+        //                 symbol,
+        //                 qty: `${qty}`,
+        //                 price: `${price}`,
+        //             });
+        //         } else {
+        //             !instrumentMinQty
+        //                 ? console.error(
+        //                       `request failed: undefined coin - ${symbol}`
+        //                   )
+        //                 : console.error(
+        //                       `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
+        //                   );
+        //         }
+        //         console.log(data);
 
-                return data;
-            }
-            case 'Limit': {
-                if (+instrumentMinQty <= +qty) {
-                    data = await restClient.submitOrder({
-                        category: 'spot',
-                        orderType,
-                        side,
-                        symbol,
-                        qty: `${qty}`,
-                        price: `${price}`,
-                    });
-                } else {
-                    !instrumentMinQty
-                        ? console.error(
-                              `request failed: undefined coin - ${symbol}`
-                          )
-                        : console.error(
-                              `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
-                          );
-                }
-                console.log(data);
+        //         return data;
+        //     }
+        //     case 'Limit': {
+        //         if (+instrumentMinQty <= +qty) {
+        //             data = await restClient.submitOrder({
+        //                 category: 'spot',
+        //                 orderType,
+        //                 side,
+        //                 symbol,
+        //                 qty: `${qty}`,
+        //                 price: `${price}`,
+        //             });
+        //         } else {
+        //             !instrumentMinQty
+        //                 ? console.error(
+        //                       `request failed: undefined coin - ${symbol}`
+        //                   )
+        //                 : console.error(
+        //                       `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
+        //                   );
+        //         }
+        //         console.log(data);
 
-                return data;
-            }
-        }
+        //         return data;
+        //     }
+        // }
 
         // console.log(instr.result.list[0]);
     } catch (error) {
