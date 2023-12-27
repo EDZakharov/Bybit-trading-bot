@@ -1,3 +1,4 @@
+import { verifiedSymbols } from '../Types/types';
 import rest from '../restClient';
 
 //  '1703616420000', Start time of the candle (ms)
@@ -92,7 +93,7 @@ function summarizingCandlesLength(
     }, 0);
 }
 
-RSI('BTCUSDT', '5', 7).then((data) => console.log(data));
+// RSI('KASUSDT', '5', 14).then((data) => console.table(data));
 
 type timeInterval =
     | '1'
@@ -108,22 +109,5 @@ type timeInterval =
     | 'D'
     | 'M'
     | 'W';
-
-type verifiedSymbols =
-    | 'BTCUSDT'
-    | 'ADAUSDT'
-    | 'DOGEUSDT'
-    | 'DOTUSDT'
-    | 'LINKUSDT'
-    | 'LTCUSDT'
-    | 'MATICUSDT'
-    | 'RVNUSDT'
-    | 'SOLUSDT'
-    | 'SUSHIUSDT'
-    | 'TRXUSDT'
-    | 'TWTUSDT'
-    | 'UNIUSDT'
-    | 'XRPUSDT'
-    | 'KASUSDT';
 
 type candles = [string, string, string, string, string, string, string];

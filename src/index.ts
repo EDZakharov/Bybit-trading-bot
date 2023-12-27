@@ -1,7 +1,8 @@
 import { editBotConfig } from './Bot/botConfig.js';
 import { trade } from './Bot/trade.js';
+import { verifiedSymbols } from './Types/types.js';
 
-async function startBot(symbols: Array<string>, editOptions: any) {
+async function startBot(symbols: Array<verifiedSymbols>, editOptions: any) {
     //TODO
     if (editOptions) {
         editBotConfig.setInsuranceOrderSteps(editOptions.insuranceOrderSteps);
@@ -19,17 +20,17 @@ async function startBot(symbols: Array<string>, editOptions: any) {
 startBot(
     [
         'BTCUSDT',
-        'ADAUSDT',
-        'DOGEUSDT',
-        'DOTUSDT',
-        'LINKUSDT',
-        'LTCUSDT',
-        'MATICUSDT',
-        'RVNUSDT',
-        'SOLUSDT',
-        'SUSHIUSDT',
-        'TRXUSDT',
-        'TWTUSDT',
+        // 'ADAUSDT',
+        // 'DOGEUSDT',
+        // 'DOTUSDT',
+        // 'LINKUSDT',
+        // 'LTCUSDT',
+        // 'MATICUSDT',
+        // 'RVNUSDT',
+        // 'SOLUSDT',
+        // 'SUSHIUSDT',
+        // 'TRXUSDT',
+        // 'TWTUSDT',
         // 'UNIUSDT',
         // 'XRPUSDT',
         // 'KASUSDT',
@@ -41,7 +42,7 @@ startBot(
 );
 
 async function loop(
-    coinName: string,
+    coinName: verifiedSymbols,
     length: number
 ): Promise<Function | void> {
     return (await trade(coinName, length))

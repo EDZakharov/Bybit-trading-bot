@@ -2,10 +2,12 @@ import { getBalance } from '../Account/getBalance.js';
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
 import { placeOrder } from '../Orders/placeOrder.js';
+import { RSI } from '../Strategies/RSI.js';
 import {
     IBuyOrdersStepsToGrid,
     IGetBalanceResult,
     IGetTickerPrice,
+    verifiedSymbols,
 } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
 import { setAskBidTerminalLog } from '../Utils/setAskBidTerminalLog.js';
@@ -14,7 +16,13 @@ import { terminalColors } from '../Utils/termColors.js';
 import { editBotConfig } from './botConfig.js';
 import { getBotStrategy } from './getBotStrategy.js';
 
-export async function trade(symbol: string, length: number): Promise<boolean> {
+export async function trade(
+    symbol: verifiedSymbols,
+    length: number
+): Promise<boolean> {
+    const activate = await activateDeal(symbol);
+    if (!activate) return true;
+
     const askBidTerminal = setAskBidTerminalLog();
     let strategy = await getBotStrategy(symbol);
     const allStepsCount = editBotConfig.getInsuranceOrderSteps();
@@ -89,6 +97,7 @@ export async function trade(symbol: string, length: number): Promise<boolean> {
 
         NEXT_LOOP: do {
             let result: IGetTickerPrice = await retry(getTickers, symbol);
+
             if (!result) {
                 continue NEXT_LOOP;
             }
@@ -199,4 +208,20 @@ async function placeTakeProfitOrder(
         price: orderTargetPrice,
         orderId,
     });
+}
+
+async function activateDeal(symbol: verifiedSymbols) {
+    let calculatedRsi = await RSI(symbol, '3', 7);
+
+    if (calculatedRsi.relativeStrengthIndex < 30) {
+        while (calculatedRsi.rsiConclusion !== 'normal') {
+            calculatedRsi = await RSI(symbol, '3', 7);
+            await sleep(5000);
+            console.table(calculatedRsi);
+        }
+        console.log('Activate deal');
+        console.table(calculatedRsi);
+        return true;
+    } //TODO
+    return false;
 }

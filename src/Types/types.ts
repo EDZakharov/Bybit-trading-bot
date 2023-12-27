@@ -105,3 +105,20 @@ export interface IGetTickerPrice {
         }
     ];
 }
+
+export type verifiedSymbols =
+    | 'BTCUSDT'
+    | 'ADAUSDT'
+    | 'DOGEUSDT'
+    | 'DOTUSDT'
+    | 'LINKUSDT'
+    | 'LTCUSDT'
+    | 'MATICUSDT'
+    | 'RVNUSDT'
+    | 'SOLUSDT'
+    | 'SUSHIUSDT'
+    | 'TRXUSDT'
+    | 'TWTUSDT'
+    | 'UNIUSDT'
+    | 'XRPUSDT'
+    | 'KASUSDT';
