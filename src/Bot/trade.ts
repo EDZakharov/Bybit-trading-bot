@@ -214,14 +214,18 @@ async function activateDeal(symbol: verifiedSymbols) {
     let calculatedRsi = await RSI(symbol, '3', 7);
 
     if (calculatedRsi.relativeStrengthIndex < 30) {
+        console.log('Wait deal');
+        console.table(calculatedRsi);
         while (calculatedRsi.rsiConclusion !== 'normal') {
             calculatedRsi = await RSI(symbol, '3', 7);
             await sleep(5000);
-            console.table(calculatedRsi);
         }
-        console.log('Activate deal');
+        console.log('Start deal');
         console.table(calculatedRsi);
+
         return true;
-    } //TODO
-    return false;
+    } else {
+        await sleep(5000);
+        return false;
+    }
 }

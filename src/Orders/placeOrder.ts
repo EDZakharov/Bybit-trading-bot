@@ -6,6 +6,7 @@ import { IPlaceOrder } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
 import { roundToPrecision } from '../Utils/roundToPrecision.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
+import restClient from '../restClient.js';
 import { getInstrumentInfo } from './getInstrumentInfo.js';
 import { getMinQty } from './getMinQty.js';
 import { getOrdersHistoryById } from './getOrdersHistoryById.js';
@@ -54,15 +55,15 @@ export const placeOrder = async ({
             }
             qty = calculateQty(qty, basePrecision);
             if (+instrumentMinQty <= qty) {
-                // data = await restClient.submitOrder({
-                //     category: 'spot',
-                //     orderType: 'Limit',
-                //     side,
-                //     symbol,
-                //     qty: `${qty}`,
-                //     price: `${price}`,
-                // });
-                // console.log(data);
+                data = await restClient.submitOrder({
+                    category: 'spot',
+                    orderType: 'Limit',
+                    side,
+                    symbol,
+                    qty: `${qty}`,
+                    price: `${price}`,
+                });
+                console.log(data);
                 return data;
             } else {
                 showError(instrumentMinQty, symbol, qty);
@@ -71,14 +72,14 @@ export const placeOrder = async ({
         } else if (orderId.length === 0 && side === 'Buy') {
             qty = calculateQty(qty, quotePrecision);
             if (+instrumentMinQty <= +qty / price) {
-                // data = await restClient.submitOrder({
-                //     category: 'spot',
-                //     orderType: 'Market',
-                //     side,
-                //     symbol,
-                //     qty: `${qty}`,
-                // });
-                // console.log(data);
+                data = await restClient.submitOrder({
+                    category: 'spot',
+                    orderType: 'Market',
+                    side,
+                    symbol,
+                    qty: `${qty}`,
+                });
+                console.log(data);
                 return data;
             } else {
                 showError(instrumentMinQty, symbol, qty);
