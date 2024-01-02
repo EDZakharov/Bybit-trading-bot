@@ -1,4 +1,5 @@
 import { verifiedSymbols } from '../Types/types';
+import { retry } from '../Utils/retry';
 import rest from '../restClient';
 
 //  '1703616420000', Start time of the candle (ms)
@@ -18,12 +19,13 @@ export const RSI = async function (
     trendConclusion: string;
     relativeStrengthIndex: number;
 }> {
-    const candles = await rest.getKline({
+    const candles = await retry(rest.getKline, {
         category: 'spot',
         symbol,
         interval,
         limit: candlesLimit,
     });
+
     const allCandles = [...candles.result.list];
     const greenCandles = getCandlesColor(allCandles, 'green');
     const redCandles = getCandlesColor(allCandles, 'red');

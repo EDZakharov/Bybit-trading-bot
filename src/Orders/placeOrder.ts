@@ -51,7 +51,7 @@ export const placeOrder = async ({
 
             if (walletBalance <= qty) {
                 qty = walletBalance - Number.EPSILON;
-                console.log('qtyNumber.EPSILON ', qty);
+                console.log('EPSILON: ', qty);
             }
             qty = calculateQty(qty, basePrecision);
             if (+instrumentMinQty <= qty) {

@@ -211,9 +211,8 @@ async function placeTakeProfitOrder(
 }
 
 async function activateDeal(symbol: verifiedSymbols) {
-    let calculatedRsi = await RSI(symbol, '3', 7);
-
-    if (calculatedRsi.relativeStrengthIndex < 30) {
+    let calculatedRsi = await RSI(symbol, '3', 14);
+    if (calculatedRsi && calculatedRsi.relativeStrengthIndex < 30) {
         console.log('Wait deal');
         console.table(calculatedRsi);
         while (calculatedRsi.rsiConclusion !== 'normal') {
