@@ -2,17 +2,14 @@ import { sleep } from './sleep.js';
 
 export async function retry(
     cb: Function,
-    symbol?: any,
-    param1?: any,
-    param2?: any,
-    param3?: any,
-    param4?: any
+    symbol: string,
+    id?: string
 ): Promise<any> {
     let result = undefined;
 
     while (!result) {
         try {
-            result = await cb(symbol, param1, param2, param3, param4);
+            result = await cb(symbol, id);
             if (!result) {
                 result = undefined;
             }
@@ -24,5 +21,5 @@ export async function retry(
         await sleep(1000);
     }
 
-    return result && cb(symbol, param1, param2, param3, param4);
+    return result && cb(symbol, id);
 }

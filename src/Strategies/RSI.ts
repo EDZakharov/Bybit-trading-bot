@@ -1,5 +1,5 @@
 import { verifiedSymbols } from '../Types/types';
-import { retry } from '../Utils/retry';
+import { sleep } from '../Utils/sleep';
 import rest from '../restClient';
 
 //  '1703616420000', Start time of the candle (ms)
@@ -13,18 +13,34 @@ import rest from '../restClient';
 export const RSI = async function (
     symbol: verifiedSymbols = 'BTCUSDT',
     interval: timeInterval = '1',
-    candlesLimit: number = 14
+    limit: number = 14
 ): Promise<{
     rsiConclusion: string;
     trendConclusion: string;
     relativeStrengthIndex: number;
 }> {
-    const candles = await retry(rest.getKline, {
-        category: 'spot',
-        symbol,
-        interval,
-        limit: candlesLimit,
-    });
+    let candles = undefined;
+    GET_KLINE: while (!candles) {
+        try {
+            candles = await rest.getKline({
+                category: 'spot',
+                symbol,
+                interval,
+                limit,
+            });
+
+            if (!candles || !candles.result.list) {
+                candles = undefined;
+                await sleep(5000);
+                continue GET_KLINE;
+            }
+        } catch (error) {
+            console.error(error);
+            candles = undefined;
+            await sleep(5000);
+            continue GET_KLINE;
+        }
+    }
 
     const allCandles = [...candles.result.list];
     const greenCandles = getCandlesColor(allCandles, 'green');
@@ -94,8 +110,6 @@ function summarizingCandlesLength(
         return acc;
     }, 0);
 }
-
-// RSI('KASUSDT', '5', 14).then((data) => console.table(data));
 
 type timeInterval =
     | '1'

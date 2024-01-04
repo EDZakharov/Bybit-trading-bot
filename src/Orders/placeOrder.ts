@@ -6,7 +6,6 @@ import { IPlaceOrder } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
 import { roundToPrecision } from '../Utils/roundToPrecision.js';
 import { symbolChecker } from '../Utils/symbolChecker.js';
-import restClient from '../restClient.js';
 import { getInstrumentInfo } from './getInstrumentInfo.js';
 import { getMinQty } from './getMinQty.js';
 import { getOrdersHistoryById } from './getOrdersHistoryById.js';
@@ -39,8 +38,6 @@ export const placeOrder = async ({
 
         if (orderId.length !== 0 && side === 'Sell') {
             await retry(getOrdersHistoryById, symbol, orderId);
-            // const orderCumExecQty = result.list[0].cumExecQty;
-
             const getFeeRateSymbol = await retry(getFeeRate, symbol);
             const walletBalance = +balance.result.balance.walletBalance;
             let calculatedTakerSymbolFee =
@@ -55,14 +52,14 @@ export const placeOrder = async ({
             }
             qty = calculateQty(qty, basePrecision);
             if (+instrumentMinQty <= qty) {
-                data = await restClient.submitOrder({
-                    category: 'spot',
-                    orderType: 'Limit',
-                    side,
-                    symbol,
-                    qty: `${qty}`,
-                    price: `${price}`,
-                });
+                // data = await restClient.submitOrder({
+                //     category: 'spot',
+                //     orderType: 'Limit',
+                //     side,
+                //     symbol,
+                //     qty: `${qty}`,
+                //     price: `${price}`,
+                // });
                 console.log(data);
                 return data;
             } else {
@@ -72,13 +69,13 @@ export const placeOrder = async ({
         } else if (orderId.length === 0 && side === 'Buy') {
             qty = calculateQty(qty, quotePrecision);
             if (+instrumentMinQty <= +qty / price) {
-                data = await restClient.submitOrder({
-                    category: 'spot',
-                    orderType: 'Market',
-                    side,
-                    symbol,
-                    qty: `${qty}`,
-                });
+                // data = await restClient.submitOrder({
+                //     category: 'spot',
+                //     orderType: 'Market',
+                //     side,
+                //     symbol,
+                //     qty: `${qty}`,
+                // });
                 console.log(data);
                 return data;
             } else {
