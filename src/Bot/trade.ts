@@ -1,9 +1,17 @@
+import consola from 'consola';
 import { getBalance } from '../Account/getBalance.js';
+import {
+    getCoinStrategyFromDb,
+    getCurrentStep,
+    setCoinStrategy,
+    setCurrentStep,
+} from '../Api/api.js';
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
 import { placeOrder } from '../Orders/placeOrder.js';
 import { RSI } from '../Strategies/RSI.js';
 import {
+    AxiosResponse,
     IBuyOrdersStepsToGrid,
     IGetBalanceResult,
     IGetTickerPrice,
@@ -18,16 +26,50 @@ import { getBotStrategy } from './getBotStrategy.js';
 
 export async function trade(
     symbol: verifiedSymbols,
-    length: number
+    length: number,
+    userCredentials: AxiosResponse<any>
 ): Promise<boolean> {
-    const activate = await activateDeal(symbol);
-    if (!activate) return true;
+    // const activate = await activateDeal(symbol);
+    // if (!activate) return true;
+    let strategy: IBuyOrdersStepsToGrid[] | undefined;
+    let strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
+    let currentStep = await getCurrentStep(symbol, userCredentials);
+    if (!strategyFromDb || strategyFromDb.length === 0) {
+        strategy = await getBotStrategy(symbol);
+        strategy &&
+            strategy.length !== 0 &&
+            (await setCoinStrategy(strategy, symbol, userCredentials));
+    }
+    if (!strategy && !!strategyFromDb && strategyFromDb.length !== 0) {
+        strategy = strategyFromDb;
+    } else {
+        consola.info({
+            message: `retrying ...`,
+            // badge: true,
+        });
+        await sleep(5000);
+        return true;
+    }
+    if (!currentStep && currentStep !== 0) {
+        currentStep = await setCurrentStep(symbol, 0, userCredentials);
+        consola.info({
+            message: `retrying ...`,
+            // badge: true,
+        });
+        await sleep(5000);
+        return true;
+    }
+
+    const filteredStrategy = strategy.filter((step) => {
+        return step.step > currentStep;
+    });
+
+    console.table(filteredStrategy);
 
     const askBidTerminal = setAskBidTerminalLog();
-    let strategy = await getBotStrategy(symbol);
     const allStepsCount = editBotConfig.getInsuranceOrderSteps();
     let summarizedOrderBasePairVolume: number | undefined;
-    if (!strategy || strategy.length === 0) return false;
+
     let order: IBuyOrdersStepsToGrid;
     let profit: number = 0;
     let finish: boolean = false;
@@ -44,7 +86,10 @@ export async function trade(
         !balanceUSDT.result.balance ||
         !balanceUSDT.result.balance.walletBalance
     ) {
-        console.error(`request failed: something went wrong `);
+        consola.error({
+            message: 'request failed: something went wrong',
+            badge: true,
+        });
         return false;
     }
 
@@ -58,7 +103,9 @@ export async function trade(
         );
     }
 
-    NEXT_STEP: for (order of strategy) {
+    NEXT_STEP: for (order of filteredStrategy) {
+        console.log(order.step); // FILTERED STRATEGY (CURRENT STEP FROM DB)
+
         if (finish) return true;
         // console.table(order);
         let buyOrderId: string = '';
@@ -67,6 +114,9 @@ export async function trade(
         let onPosition: boolean = false;
         let onTakeProfit: boolean = false;
         let nextInsurancePriceToStep = allOrdersPriceToStep[order.step + 1];
+        // let currInsurancePriceToStep = allOrdersPriceToStep[order.step];
+        // console.log(currInsurancePriceToStep);
+
         // balanceUSDT = await retry(getBalance, 'USDT');
         summarizedOrderBasePairVolume = [...strategy][allStepsCount]
             ?.summarizedOrderBasePairVolume;
@@ -80,6 +130,8 @@ export async function trade(
         if (!nextInsurancePriceToStep || order.step === allStepsCount) {
             console.log('all insurance orders was executed');
             nextInsurancePriceToStep = currentPrice / 1000;
+
+            //EXIT TODO
         }
 
         if (
@@ -88,9 +140,10 @@ export async function trade(
             !orderTargetPrice ||
             !summarizedOrderBasePairVolume
         ) {
-            console.error(
-                `request failed: something went wrong ${summarizedOrderSecondaryPairVolume} || ${orderSecondaryPairVolume} || ${orderTargetPrice} || ${summarizedOrderBasePairVolume}`
-            );
+            consola.error({
+                message: `request failed: something went wrong ${summarizedOrderSecondaryPairVolume} || ${orderSecondaryPairVolume} || ${orderTargetPrice} || ${summarizedOrderBasePairVolume}`,
+                badge: true,
+            });
 
             return false;
         }
@@ -113,9 +166,10 @@ export async function trade(
                     nextStep: nextInsurancePriceToStep,
                 });
 
-                console.log(
-                    `place buy market order ${orderSecondaryPairVolume} ${symbol} - ${orderPriceToStep}`
-                );
+                consola.info({
+                    message: `place buy market order ${orderSecondaryPairVolume} ${symbol} - ${orderPriceToStep}`,
+                    // badge: true,
+                });
                 buyOrderId = '';
                 const buyOrder = await placeOrder({
                     side: 'Buy',
@@ -126,7 +180,10 @@ export async function trade(
                 });
                 if (!buyOrder) {
                     onPosition = false;
-                    console.error(`place failed! retry!`);
+                    consola.info({
+                        message: `place failed! retrying ...`,
+                        // badge: true,
+                    });
                     continue NEXT_LOOP;
                 }
                 buyOrderId = buyOrder.result.orderId;
@@ -211,12 +268,12 @@ async function placeTakeProfitOrder(
 }
 
 async function activateDeal(symbol: verifiedSymbols) {
-    let calculatedRsi = await RSI(symbol, '3', 14);
+    let calculatedRsi = await RSI(symbol, '1', 3);
     if (calculatedRsi && calculatedRsi.relativeStrengthIndex < 30) {
         console.log('Wait deal');
         console.table(calculatedRsi);
         while (calculatedRsi.rsiConclusion !== 'normal') {
-            calculatedRsi = await RSI(symbol, '3', 7);
+            calculatedRsi = await RSI(symbol, '1', 5);
             await sleep(5000);
         }
         console.log('Start deal');
@@ -224,6 +281,7 @@ async function activateDeal(symbol: verifiedSymbols) {
 
         return true;
     } else {
+        console.log('Monitoring');
         await sleep(5000);
         return false;
     }

@@ -1,3 +1,5 @@
+import { Method } from 'axios';
+
 export interface IRestClientOptions {
     key?: string;
     secret?: string;
@@ -41,6 +43,8 @@ export interface IBuyOrdersStepsToGrid {
     summarizedOrderBasePairVolume: number;
     summarizedOrderSecondaryPairVolume: number;
 }
+
+export type ISetOrdersStepsToMongo = IBuyOrdersStepsToGrid[];
 
 export interface IWeightedSum {
     orderPriceToStep: number;
@@ -122,3 +126,31 @@ export type verifiedSymbols =
     | 'UNIUSDT'
     | 'XRPUSDT'
     | 'KASUSDT';
+
+export interface AxiosRequestConfig<T = any> {
+    url?: string;
+    method?: Method;
+    baseURL?: string;
+    data?: T;
+    headers?: Record<string, string>;
+    params?: any;
+}
+
+export interface AxiosResponse<T = any> {
+    data: T;
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    config: AxiosRequestConfig<T>;
+    request?: any;
+}
+
+export interface IStep {
+    data: {
+        message: string;
+        success: boolean;
+        id: string;
+        step: number;
+        coin: string;
+    };
+}

@@ -1,5 +1,6 @@
 import { OrderResultV5 } from 'bybit-api/lib/types/response/v5-trade.js';
 import { APIResponseV3WithTime } from 'bybit-api/lib/types/shared.js';
+import consola from 'consola';
 import { getBalance } from '../Account/getBalance.js';
 import { getFeeRate } from '../Market/getFeeRate.js';
 import { IPlaceOrder } from '../Types/types.js';
@@ -18,14 +19,20 @@ export const placeOrder = async ({
     orderId,
 }: IPlaceOrder): Promise<APIResponseV3WithTime<OrderResultV5> | undefined> => {
     if (!symbolChecker(symbol)) {
-        console.error(`request failed: undefined coin - ${symbol}`);
+        consola.error({
+            message: `request failed: undefined coin - ${symbol}`,
+            badge: true,
+        });
         return;
     }
     let data;
     try {
         const instr = await retry(getInstrumentInfo, symbol);
         if (!instr || !instr.result.list[0]) {
-            console.error('request failed: something went wrong');
+            consola.error({
+                message: 'request failed: something went wrong',
+                badge: true,
+            });
             return;
         }
         const result = instr.result.list[0];
@@ -60,7 +67,7 @@ export const placeOrder = async ({
                 //     qty: `${qty}`,
                 //     price: `${price}`,
                 // });
-                console.log(data);
+                // console.log(data);
                 return data;
             } else {
                 showError(instrumentMinQty, symbol, qty);
@@ -76,7 +83,7 @@ export const placeOrder = async ({
                 //     symbol,
                 //     qty: `${qty}`,
                 // });
-                console.log(data);
+                // console.log(data);
                 return data;
             } else {
                 showError(instrumentMinQty, symbol, qty);
@@ -84,7 +91,10 @@ export const placeOrder = async ({
             }
         }
     } catch (error) {
-        console.error('0request failed: ', error);
+        consola.error({
+            message: `request failed: ${error}`,
+            badge: true,
+        });
     }
     return data;
 };
@@ -95,10 +105,14 @@ function showError(
     qty: number
 ): void {
     return !instrumentMinQty
-        ? console.error(`request failed: undefined coin - ${symbol}`)
-        : console.error(
-              `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`
-          );
+        ? consola.error({
+              message: `request failed: undefined coin - ${symbol}`,
+              badge: true,
+          })
+        : consola.error({
+              message: `request failed: you sent ${qty} qty, you should send >= ${instrumentMinQty} qty for success`,
+              badge: true,
+          });
 }
 
 function calculateQty(qty: number, precision: string) {

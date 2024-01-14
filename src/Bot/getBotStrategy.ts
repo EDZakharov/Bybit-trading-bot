@@ -1,3 +1,4 @@
+import consola from 'consola';
 import { findAndVerifySymbol } from '../Market/getVerifiedSymbols.js';
 import { generateBotStrategy } from '../Strategies/DCA.js';
 import { IBuyOrdersStepsToGrid } from '../Types/types.js';
@@ -16,8 +17,9 @@ export const getBotStrategy = async function (
     const result: Array<IBuyOrdersStepsToGrid> = await generatedStrategy(
         symbol
     );
-
-    console.table(result);
-
+    consola.info({
+        message: `generating strategy to symbol ${symbol} ... `,
+        // badge: true,
+    });
     return result;
 };
