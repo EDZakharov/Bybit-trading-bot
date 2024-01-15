@@ -3,6 +3,7 @@ import { loginUserToMongoService } from './Api/api.js';
 import { editBotConfig } from './Bot/botConfig.js';
 import { trade } from './Bot/trade.js';
 import { AxiosResponse, verifiedSymbols } from './Types/types.js';
+import { sleep } from './Utils/sleep.js';
 
 interface IUserCredentials {
     username: string;
@@ -26,15 +27,26 @@ async function startBot(
     const isAuth = await loginUserToMongoService(
         userCredentials.username,
         userCredentials.password
-    ).catch((err) => {
-        consola.error({
-            message: err.response?.data,
-        });
+    ).catch(async (err) => {
+        if (err.code === 'ECONNREFUSED') {
+            consola.error({
+                message: 'Connection to Mongo-service failed. Retrying ... ',
+            });
+
+            await sleep(10000);
+            startBot(symbols, editOptions, userCredentials);
+        } else {
+            consola.error({
+                message: err,
+            });
+        }
         return;
     });
+
     if (!isAuth || isAuth.status !== 200 || !isAuth.data) {
         return;
     }
+
     consola.success({
         message: isAuth.data.message,
         badge: true,
@@ -54,8 +66,8 @@ startBot(
         // 'KASUSDT',
     ],
     {
-        // insuranceOrderPriceDeviationPercent: 0.1,
-        // targetProfitPercent: 0.1,
+        insuranceOrderPriceDeviationPercent: 0.1,
+        targetProfitPercent: 0.1,
     },
     { username: 'evgesha1', password: 'SLoqwnxz1' }
 );

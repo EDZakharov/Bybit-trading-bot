@@ -1,6 +1,8 @@
 import consola from 'consola';
 import { getBalance } from '../Account/getBalance.js';
 import {
+    deleteCoinStrategy,
+    deleteCurrentStep,
     getCoinStrategyFromDb,
     getCurrentStep,
     setCoinStrategy,
@@ -9,7 +11,7 @@ import {
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
 import { placeOrder } from '../Orders/placeOrder.js';
-import { RSI } from '../Strategies/RSI.js';
+import { IRsiOptions, RSI } from '../Strategies/RSI.js';
 import {
     AxiosResponse,
     IBuyOrdersStepsToGrid,
@@ -29,11 +31,35 @@ export async function trade(
     length: number,
     userCredentials: AxiosResponse<any>
 ): Promise<boolean> {
-    // const activate = await activateDeal(symbol);
-    // if (!activate) return true;
     let strategy: IBuyOrdersStepsToGrid[] | undefined;
     let strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
     let currentStep = await getCurrentStep(symbol, userCredentials);
+
+    // if (!strategyFromDb && !currentStep) {
+    //     const activate = await activateDeal(symbol);
+    //     if (!activate) return true;
+    // }
+
+    if (!strategyFromDb && currentStep) {
+        await deleteCurrentStep(symbol, userCredentials);
+        consola.info({
+            message: `retrying ...`,
+            // badge: true,
+        });
+        await sleep(5000);
+        return true;
+    }
+
+    if (strategyFromDb && !currentStep && currentStep !== 0) {
+        currentStep = await setCurrentStep(symbol, 0, userCredentials);
+        consola.info({
+            message: `retrying ...`,
+            // badge: true,
+        });
+        await sleep(5000);
+        return true;
+    }
+
     if (!strategyFromDb || strategyFromDb.length === 0) {
         strategy = await getBotStrategy(symbol);
         strategy &&
@@ -50,19 +76,16 @@ export async function trade(
         await sleep(5000);
         return true;
     }
-    if (!currentStep && currentStep !== 0) {
-        currentStep = await setCurrentStep(symbol, 0, userCredentials);
-        consola.info({
-            message: `retrying ...`,
-            // badge: true,
-        });
-        await sleep(5000);
-        return true;
-    }
 
-    const filteredStrategy = strategy.filter((step) => {
-        return step.step > currentStep;
-    });
+    let filteredStrategy: IBuyOrdersStepsToGrid[];
+
+    if (currentStep === 0) {
+        filteredStrategy = strategy;
+    } else {
+        filteredStrategy = strategy.filter((step) => {
+            return step.step >= currentStep;
+        });
+    }
 
     console.table(filteredStrategy);
 
@@ -103,9 +126,15 @@ export async function trade(
         );
     }
 
-    NEXT_STEP: for (order of filteredStrategy) {
-        console.log(order.step); // FILTERED STRATEGY (CURRENT STEP FROM DB)
+    if (filteredStrategy.length === 0) {
+        await deleteCurrentStep(symbol, userCredentials);
+        await deleteCoinStrategy(symbol, userCredentials);
+        return true;
+    }
 
+    NEXT_STEP: for (order of filteredStrategy) {
+        // FILTERED STRATEGY (CURRENT STEP FROM DB)
+        await setCurrentStep(symbol, order.step, userCredentials);
         if (finish) return true;
         // console.table(order);
         let buyOrderId: string = '';
@@ -118,6 +147,7 @@ export async function trade(
         // console.log(currInsurancePriceToStep);
 
         // balanceUSDT = await retry(getBalance, 'USDT');
+
         summarizedOrderBasePairVolume = [...strategy][allStepsCount]
             ?.summarizedOrderBasePairVolume;
         const orderSecondaryPairVolume = order.orderSecondaryPairVolume;
@@ -128,10 +158,41 @@ export async function trade(
         const orderPriceToStep = order.orderPriceToStep;
 
         if (!nextInsurancePriceToStep || order.step === allStepsCount) {
-            console.log('all insurance orders was executed');
-            nextInsurancePriceToStep = currentPrice / 1000;
+            //EXIT
+            consola.warn({
+                message: 'All insurance orders was executed',
+            });
 
-            //EXIT TODO
+            let lastResult: IGetTickerPrice = await retry(getTickers, symbol);
+            let lastPrice = +lastResult.list[0].lastPrice;
+
+            console.table({
+                profitTarget: orderTargetPrice,
+                nextStep: 'Exiting',
+            });
+
+            while (lastPrice < orderTargetPrice) {
+                lastResult = await retry(getTickers, symbol);
+                lastPrice = +lastResult.list[0].lastPrice;
+                const date = new Date();
+                askBidTerminal(date, lastPrice);
+                await sleep(5000);
+                continue;
+            }
+            profit = Math.abs(
+                orderTargetPrice * summarizedOrderSecondaryPairVolume -
+                    orderPriceToStep * summarizedOrderSecondaryPairVolume
+            );
+
+            console.table({
+                position: 'take_profit',
+                price: lastPrice,
+                profit,
+            });
+
+            await deleteCurrentStep(symbol, userCredentials);
+            await deleteCoinStrategy(symbol, userCredentials);
+            return true;
         }
 
         if (
@@ -178,6 +239,7 @@ export async function trade(
                     price: currentPrice,
                     orderId: buyOrderId,
                 });
+
                 if (!buyOrder) {
                     onPosition = false;
                     consola.info({
@@ -192,14 +254,15 @@ export async function trade(
             //CANCEL TP ORDER & NEXT STEP
             if (onPosition && currentPrice < nextInsurancePriceToStep) {
                 await retry(cancelOrder, symbol, sellOrderId);
-
                 onPosition = false;
                 onTakeProfit = false;
                 buyOrderId = '';
                 sellOrderId = '';
+
                 console.table({
                     position: 'next_step',
                 });
+
                 continue NEXT_STEP;
             }
 
@@ -214,15 +277,17 @@ export async function trade(
 
                 //SET TP ORDER ID
                 if (takeProfitOrder && takeProfitOrder.result) {
-                    console.log(
-                        `place limit take profit order ${summarizedOrderSecondaryPairVolume} ${symbol} - ${orderTargetPrice}`
-                    );
+                    consola.info({
+                        message: `place limit take profit order ${summarizedOrderSecondaryPairVolume} ${symbol} - ${orderTargetPrice}`,
+                    });
+
                     sellOrderId = takeProfitOrder.result.orderId;
                     onTakeProfit = true;
                 } else {
-                    console.error(
-                        `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${sellOrderId} || ${takeProfitOrder}`
-                    );
+                    consola.error({
+                        message: `PLACE LIMIT ORDER & TP ORDER - request failed: something went wrong ${sellOrderId} || ${takeProfitOrder}`,
+                    });
+
                     return false;
                 }
             }
@@ -234,6 +299,8 @@ export async function trade(
                     orderTargetPrice * summarizedOrderSecondaryPairVolume -
                         orderPriceToStep * summarizedOrderSecondaryPairVolume
                 );
+                await deleteCurrentStep(symbol, userCredentials);
+                await deleteCoinStrategy(symbol, userCredentials);
                 console.table({
                     position: 'take_profit',
                     price: currentPrice,
@@ -268,21 +335,44 @@ async function placeTakeProfitOrder(
 }
 
 async function activateDeal(symbol: verifiedSymbols) {
-    let calculatedRsi = await RSI(symbol, '1', 3);
+    const rsiOptions: IRsiOptions = {
+        symbol,
+        timeInterval: '1',
+        limit: 5,
+    };
+    let calculatedRsi = await RSI(
+        rsiOptions.symbol,
+        rsiOptions.timeInterval,
+        rsiOptions.limit
+    );
     if (calculatedRsi && calculatedRsi.relativeStrengthIndex < 30) {
-        console.log('Wait deal');
-        console.table(calculatedRsi);
+        consola.info({
+            message: `starting RSI monitoring...`,
+            // badge: true,
+        });
         while (calculatedRsi.rsiConclusion !== 'normal') {
-            calculatedRsi = await RSI(symbol, '1', 5);
+            calculatedRsi = await RSI(
+                rsiOptions.symbol,
+                rsiOptions.timeInterval,
+                rsiOptions.limit
+            );
+            consola.info({
+                message: `current RSI = ${calculatedRsi.relativeStrengthIndex}, wait deal ... `,
+                // badge: true,
+            });
             await sleep(5000);
         }
-        console.log('Start deal');
-        console.table(calculatedRsi);
-
+        consola.info({
+            message: `start deal...`,
+            // badge: true,
+        });
         return true;
     } else {
-        console.log('Monitoring');
+        consola.info({
+            message: `current RSI = ${calculatedRsi.relativeStrengthIndex}, monitoring ...`,
+            // badge: true,
+        });
         await sleep(5000);
-        return false;
+        return await activateDeal(symbol);
     }
 }

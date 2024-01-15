@@ -68,7 +68,16 @@ export const placeOrder = async ({
                 //     price: `${price}`,
                 // });
                 // console.log(data);
-                return data;
+                // return data;
+
+                // TEST
+
+                return {
+                    //@ts-ignore
+                    result: {
+                        orderId: '123',
+                    },
+                };
             } else {
                 showError(instrumentMinQty, symbol, qty);
                 return;
@@ -84,7 +93,15 @@ export const placeOrder = async ({
                 //     qty: `${qty}`,
                 // });
                 // console.log(data);
-                return data;
+                // return data;
+
+                // TEST
+                return {
+                    //@ts-ignore
+                    result: {
+                        orderId: '123',
+                    },
+                };
             } else {
                 showError(instrumentMinQty, symbol, qty);
                 return;

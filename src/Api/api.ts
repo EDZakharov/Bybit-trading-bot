@@ -93,6 +93,32 @@ export async function setCoinStrategy(
         );
         consola.success({
             message: 'Strategy set to db',
+            badge: true,
+        });
+    } catch (error) {
+        consola.error({
+            message: error,
+            badge: true,
+        });
+    }
+}
+
+export async function deleteCoinStrategy(
+    coin: string,
+    userCredentials: AxiosResponse<any>
+) {
+    try {
+        await mongoServiceInstance.delete('/delete-coin-strategy', {
+            params: {
+                id: userCredentials.data.userId,
+                coin,
+            },
+            headers: {
+                Authorization: userCredentials.data.accessToken,
+            },
+        });
+        consola.info({
+            message: 'Strategy was deleted',
             // badge: true,
         });
     } catch (error) {
@@ -162,14 +188,48 @@ export async function setCurrentStep(
         }
 
         consola.success({
-            message: 'Current step set',
-            // badge: true,
+            message: 'Current step set to db',
+            badge: true,
         });
 
         return result;
     } catch (error: any) {
         consola.error({
             message: `Unable to set step: ${error.response?.data.message}`,
+            badge: false,
+        });
+        return;
+    }
+}
+
+export async function deleteCurrentStep(
+    coin: string,
+    userCredentials: AxiosResponse<any>
+): Promise<any | undefined> {
+    try {
+        const result = await mongoServiceInstance.delete(
+            '/delete-current-step',
+            {
+                params: {
+                    id: userCredentials.data.userId,
+                    coin,
+                },
+                headers: {
+                    Authorization: userCredentials.data.accessToken,
+                },
+            }
+        );
+
+        if (result) {
+            consola.info({
+                message: 'Current step was deleted',
+                // badge: true,
+            });
+        }
+        return result;
+    } catch (error: any) {
+        consola.error({
+            message: `Unable to delete current step: ${error.response?.data.message}`,
             badge: false,
         });
         return;

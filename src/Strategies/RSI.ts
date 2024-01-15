@@ -111,7 +111,13 @@ function summarizingCandlesLength(
     }, 0);
 }
 
-type timeInterval =
+export interface IRsiOptions {
+    symbol: verifiedSymbols;
+    timeInterval: timeInterval;
+    limit: number;
+}
+
+export type timeInterval =
     | '1'
     | '3'
     | '5'
