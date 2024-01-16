@@ -108,24 +108,32 @@ export async function deleteCoinStrategy(
     userCredentials: AxiosResponse<any>
 ) {
     try {
-        await mongoServiceInstance.delete('/delete-coin-strategy', {
-            params: {
-                id: userCredentials.data.userId,
-                coin,
-            },
-            headers: {
-                Authorization: userCredentials.data.accessToken,
-            },
-        });
+        const result = await mongoServiceInstance.delete(
+            '/delete-coin-strategy',
+            {
+                params: {
+                    id: userCredentials.data.userId,
+                    coin,
+                },
+                headers: {
+                    Authorization: userCredentials.data.accessToken,
+                },
+            }
+        );
+        if (!result) {
+            return;
+        }
         consola.info({
             message: 'Strategy was deleted',
             // badge: true,
         });
-    } catch (error) {
+        return result;
+    } catch (error: any) {
         consola.error({
-            message: error,
-            badge: true,
+            message: `Unable to delete coin strategy: ${error.response?.status}`,
+            badge: false,
         });
+        return error.response?.status;
     }
 }
 
@@ -229,9 +237,9 @@ export async function deleteCurrentStep(
         return result;
     } catch (error: any) {
         consola.error({
-            message: `Unable to delete current step: ${error.response?.data.message}`,
+            message: `Unable to delete current step: ${error.response?.status}`,
             badge: false,
         });
-        return;
+        return error.response?.status;
     }
 }

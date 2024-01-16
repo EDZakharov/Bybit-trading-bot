@@ -35,10 +35,10 @@ export async function trade(
     let strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
     let currentStep = await getCurrentStep(symbol, userCredentials);
 
-    // if (!strategyFromDb && !currentStep) {
-    //     const activate = await activateDeal(symbol);
-    //     if (!activate) return true;
-    // }
+    if (!strategyFromDb && !currentStep) {
+        const activate = await activateDeal(symbol);
+        if (!activate) return true;
+    }
 
     if (!strategyFromDb && currentStep) {
         await deleteCurrentStep(symbol, userCredentials);
@@ -61,10 +61,15 @@ export async function trade(
     }
 
     if (!strategyFromDb || strategyFromDb.length === 0) {
-        strategy = await getBotStrategy(symbol);
-        strategy &&
-            strategy.length !== 0 &&
-            (await setCoinStrategy(strategy, symbol, userCredentials));
+        strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
+        if (!strategyFromDb) {
+            strategy = await getBotStrategy(symbol);
+            strategy &&
+                strategy.length !== 0 &&
+                (await setCoinStrategy(strategy, symbol, userCredentials));
+        } else {
+            strategy = strategyFromDb;
+        }
     }
     if (!strategy && !!strategyFromDb && strategyFromDb.length !== 0) {
         strategy = strategyFromDb;
@@ -299,14 +304,12 @@ export async function trade(
                     orderTargetPrice * summarizedOrderSecondaryPairVolume -
                         orderPriceToStep * summarizedOrderSecondaryPairVolume
                 );
-                await deleteCurrentStep(symbol, userCredentials);
-                await deleteCoinStrategy(symbol, userCredentials);
                 console.table({
                     position: 'take_profit',
                     price: currentPrice,
                     profit,
                 });
-
+                await takeFinish(symbol, userCredentials);
                 finish = true;
                 break;
             }
@@ -338,7 +341,7 @@ async function activateDeal(symbol: verifiedSymbols) {
     const rsiOptions: IRsiOptions = {
         symbol,
         timeInterval: '1',
-        limit: 5,
+        limit: 4,
     };
     let calculatedRsi = await RSI(
         rsiOptions.symbol,
@@ -375,4 +378,18 @@ async function activateDeal(symbol: verifiedSymbols) {
         await sleep(5000);
         return await activateDeal(symbol);
     }
+}
+
+async function takeFinish(
+    symbol: verifiedSymbols,
+    userCredentials: AxiosResponse<any>
+) {
+    await deleteCurrentStep(symbol, userCredentials);
+    let resultStrategy = await deleteCoinStrategy(symbol, userCredentials);
+    while (!resultStrategy || resultStrategy.status !== 200) {
+        await sleep(5000);
+        await deleteCurrentStep(symbol, userCredentials);
+        resultStrategy = await deleteCoinStrategy(symbol, userCredentials);
+    }
+    return;
 }
