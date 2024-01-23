@@ -8,6 +8,7 @@ import {
     setCoinStrategy,
     setCurrentStep,
 } from '../Api/api.js';
+import { getAuthStatusFromFile } from '../Api/checkauth.js';
 import { getTickers } from '../Market/getTickers.js';
 import { cancelOrder } from '../Orders/cancelOrder.js';
 import { placeOrder } from '../Orders/placeOrder.js';
@@ -24,63 +25,62 @@ import { setAskBidTerminalLog } from '../Utils/setAskBidTerminalLog.js';
 import { sleep } from '../Utils/sleep.js';
 import { terminalColors } from '../Utils/termColors.js';
 import { editBotConfig } from './botConfig.js';
-import { getBotStrategy } from './getBotStrategy.js';
+import { generateStrategy } from './getBotStrategy.js';
+import { setStepToFile } from './steps.js';
+import {
+    checkStrategyHealthFromFile,
+    getStrategyFromFile,
+    setStrategyToFile,
+} from './strategies.js';
 
 export async function trade(
     symbol: verifiedSymbols,
     length: number,
     userCredentials: AxiosResponse<any>
 ): Promise<boolean> {
-    let strategy: IBuyOrdersStepsToGrid[] | undefined;
     let strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
-    let currentStep = await getCurrentStep(symbol, userCredentials);
+    let currentStep = 0;
+    const stepFromDb = await getCurrentStep(symbol, userCredentials);
 
-    if (!strategyFromDb && !currentStep) {
-        const activate = await activateDeal(symbol);
-        if (!activate) return true;
-    }
-
-    if (!strategyFromDb && currentStep) {
-        await deleteCurrentStep(symbol, userCredentials);
-        consola.info({
-            message: `retrying ...`,
-            // badge: true,
-        });
-        await sleep(5000);
-        return true;
-    }
-
-    if (strategyFromDb && !currentStep && currentStep !== 0) {
-        currentStep = await setCurrentStep(symbol, 0, userCredentials);
-        consola.info({
-            message: `retrying ...`,
-            // badge: true,
-        });
-        await sleep(5000);
-        return true;
-    }
-
-    if (!strategyFromDb || strategyFromDb.length === 0) {
-        strategyFromDb = await getCoinStrategyFromDb(symbol, userCredentials);
-        if (!strategyFromDb) {
-            strategy = await getBotStrategy(symbol);
-            strategy &&
-                strategy.length !== 0 &&
-                (await setCoinStrategy(strategy, symbol, userCredentials));
+    if (strategyFromDb && strategyFromDb.length !== 0) {
+        await setStrategyToFile(strategyFromDb, symbol);
+        if (!stepFromDb && stepFromDb !== 0) {
+            currentStep = 0;
+            await setStepToFile(currentStep, symbol);
+            await setCurrentStep(symbol, currentStep, userCredentials);
         } else {
-            strategy = strategyFromDb;
+            currentStep = stepFromDb;
+            await setStepToFile(currentStep, symbol);
         }
-    }
-    if (!strategy && !!strategyFromDb && strategyFromDb.length !== 0) {
-        strategy = strategyFromDb;
     } else {
-        consola.info({
-            message: `retrying ...`,
-            // badge: true,
-        });
-        await sleep(5000);
+        if (stepFromDb) {
+            await deleteCurrentStep(symbol, userCredentials);
+        }
+        // const rsiOptions: IRsiOptions = {
+        //     symbol,
+        //     timeInterval: '1',
+        //     limit: 4,
+        // };
+        // const activate = await activateDeal(symbol, rsiOptions);
+        // if (!activate) return true;
+
+        const genResult = await generateStrategy(symbol);
+        if (genResult === null) {
+            consola.error({
+                message: `generateStrategy Error: something went wrong`,
+            });
+            return false;
+        }
+        await setCoinStrategy(genResult, symbol, userCredentials);
+        await setCurrentStep(symbol, 0, userCredentials);
+    }
+
+    const strategyHealth = await checkStrategyHealthFromFile(symbol);
+    if (!strategyHealth) {
         return true;
     }
+
+    let strategy: IBuyOrdersStepsToGrid[] = await getStrategyFromFile(symbol);
 
     let filteredStrategy: IBuyOrdersStepsToGrid[];
 
@@ -92,20 +92,18 @@ export async function trade(
         });
     }
 
-    console.table(filteredStrategy);
-
     const askBidTerminal = setAskBidTerminalLog();
     const allStepsCount = editBotConfig.getInsuranceOrderSteps();
     let summarizedOrderBasePairVolume: number | undefined;
-
     let order: IBuyOrdersStepsToGrid;
     let profit: number = 0;
     let finish: boolean = false;
+
     summarizedOrderBasePairVolume = [...strategy][allStepsCount]
         ?.summarizedOrderBasePairVolume;
     const orders: Array<IBuyOrdersStepsToGrid> = [...strategy];
     const allOrdersPriceToStep = orders.map((el) => el.orderPriceToStep);
-    let balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT'); //getBalance
+    let balanceUSDT: IGetBalanceResult = await retry(getBalance, 'USDT');
 
     if (
         !summarizedOrderBasePairVolume ||
@@ -136,11 +134,19 @@ export async function trade(
         await deleteCoinStrategy(symbol, userCredentials);
         return true;
     }
+    console.table(filteredStrategy);
 
     NEXT_STEP: for (order of filteredStrategy) {
+        const isAuth = await checkAuth();
+        if (!isAuth) return false;
+
         // FILTERED STRATEGY (CURRENT STEP FROM DB)
-        await setCurrentStep(symbol, order.step, userCredentials);
         if (finish) return true;
+
+        // TODO ADD CHECK UNAUTHORIZED ERROR
+
+        await setCurrentStep(symbol, order.step, userCredentials);
+
         // console.table(order);
         let buyOrderId: string = '';
         let sellOrderId: string = '';
@@ -197,6 +203,7 @@ export async function trade(
 
             await deleteCurrentStep(symbol, userCredentials);
             await deleteCoinStrategy(symbol, userCredentials);
+
             return true;
         }
 
@@ -215,6 +222,9 @@ export async function trade(
         }
 
         NEXT_LOOP: do {
+            const isAuth = await checkAuth();
+            if (!isAuth) return false;
+
             let result: IGetTickerPrice = await retry(getTickers, symbol);
 
             if (!result) {
@@ -309,7 +319,8 @@ export async function trade(
                     price: currentPrice,
                     profit,
                 });
-                await takeFinish(symbol, userCredentials);
+                await deleteCurrentStep(symbol, userCredentials);
+                await deleteCoinStrategy(symbol, userCredentials);
                 finish = true;
                 break;
             }
@@ -319,6 +330,7 @@ export async function trade(
             await sleep(5000);
         } while (currentPrice >= nextInsurancePriceToStep);
     }
+
     return finish;
 }
 
@@ -337,12 +349,7 @@ async function placeTakeProfitOrder(
     });
 }
 
-async function activateDeal(symbol: verifiedSymbols) {
-    const rsiOptions: IRsiOptions = {
-        symbol,
-        timeInterval: '1',
-        limit: 4,
-    };
+async function activateDeal(symbol: verifiedSymbols, rsiOptions: IRsiOptions) {
     let calculatedRsi = await RSI(
         rsiOptions.symbol,
         rsiOptions.timeInterval,
@@ -351,7 +358,6 @@ async function activateDeal(symbol: verifiedSymbols) {
     if (calculatedRsi && calculatedRsi.relativeStrengthIndex < 30) {
         consola.info({
             message: `starting RSI monitoring...`,
-            // badge: true,
         });
         while (calculatedRsi.rsiConclusion !== 'normal') {
             calculatedRsi = await RSI(
@@ -361,35 +367,29 @@ async function activateDeal(symbol: verifiedSymbols) {
             );
             consola.info({
                 message: `current RSI = ${calculatedRsi.relativeStrengthIndex}, wait deal ... `,
-                // badge: true,
             });
             await sleep(5000);
         }
         consola.info({
             message: `start deal...`,
-            // badge: true,
         });
         return true;
     } else {
         consola.info({
             message: `current RSI = ${calculatedRsi.relativeStrengthIndex}, monitoring ...`,
-            // badge: true,
         });
         await sleep(5000);
-        return await activateDeal(symbol);
+        return await activateDeal(symbol, rsiOptions);
     }
 }
 
-async function takeFinish(
-    symbol: verifiedSymbols,
-    userCredentials: AxiosResponse<any>
-) {
-    await deleteCurrentStep(symbol, userCredentials);
-    let resultStrategy = await deleteCoinStrategy(symbol, userCredentials);
-    while (!resultStrategy || resultStrategy.status !== 200) {
-        await sleep(5000);
-        await deleteCurrentStep(symbol, userCredentials);
-        resultStrategy = await deleteCoinStrategy(symbol, userCredentials);
+const checkAuth = async () => {
+    const isAuth = await getAuthStatusFromFile();
+    if (!isAuth) {
+        consola.error({
+            message: `Unauthorized`,
+        });
+        return false;
     }
-    return;
-}
+    return true;
+};

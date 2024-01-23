@@ -1,14 +1,165 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import consola from 'consola';
-import { AxiosResponse, ISetOrdersStepsToMongo } from '../Types/types';
+import {
+    AxiosResponse,
+    IBuyOrdersStepsToGrid,
+    ISetOrdersStepsToMongo,
+    IStrategyMongoResult,
+    verifiedSymbols,
+} from '../Types/types';
+import {
+    addCredentialsToFile,
+    checkTokensHealthFromFile,
+    deleteTokensFromFile,
+    getDataFromFile,
+    setRefreshTokenToFile,
+} from './auth';
 
+import { Mutex } from 'async-mutex';
+import { sleep } from '../Utils/sleep';
+import { setAuthStatusToFile } from './checkauth';
+
+const mutex = new Mutex();
 const baseUrl = 'localhost:5000';
-
 const mongoServiceInstance = axios.create({
     baseURL: `http://${baseUrl}/api/users`,
     timeout: 1000,
-    // headers: {'X-Custom-Header': 'foobar'}
+    headers: { 'Content-Type': 'application/json' },
 });
+const getAccessToken = async () => {
+    const token = await getDataFromFile('accessToken');
+    return token;
+    // return 'token';
+};
+const maxRetries = 2;
+let currentRetry = 0;
+
+mongoServiceInstance.interceptors.request.use(
+    function (config) {
+        return config;
+    },
+    function (error) {
+        // console.log(error.code);
+        return Promise.reject(error);
+    }
+);
+
+mongoServiceInstance.interceptors.response.use(
+    async (response) => {
+        await setAuthStatusToFile(true);
+        currentRetry = 0;
+        return response;
+    },
+    async (error: AxiosError) => {
+        // console.log(error.response);
+
+        if (error.response && error.response.status === 401 && error.config) {
+            // try {
+            //     const retryGetTokens = await refreshTokens();
+            // } catch (error) {}
+            // const release = await mutex.acquire();
+            // return unauthorizedResponse(error);
+            // console.log('Unauthorized');
+
+            try {
+                if (currentRetry > maxRetries) {
+                    throw new Error('123');
+                }
+
+                await sleep(2000);
+                currentRetry += 1;
+                await refreshTokens();
+                const originalRequest = error.config;
+                const accessToken = await getDataFromFile('accessToken');
+                originalRequest.headers.Authorization = accessToken;
+                return mongoServiceInstance(originalRequest);
+            } catch (error) {
+                console.log('Error refreshing token');
+                await setAuthStatusToFile(false);
+                await deleteTokensFromFile();
+            }
+        }
+
+        if (error.response && error.response.status === 404 && error.config) {
+            console.error('404 Not Found:', error.config.url);
+        }
+        if (error.response && error.response.status === 400 && error.config) {
+            console.error('400 Bad Request:', error.config.url);
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+// const unauthorizedResponse = async (error: AxiosError) => {
+//     await sleep(5000);
+
+//     let result: AxiosResponse<any> | undefined;
+//     try {
+//         currentRetry += 1;
+//         const currentToken = await getDataFromFile('refreshToken');
+//         const originalRequest = error.config;
+//         consola.error({
+//             message: 'Unauthorized',
+//         });
+
+//         result = await refreshTokens(currentToken);
+//         // console.log(result.status);
+
+//         if (result && result.status === 200 && originalRequest) {
+//             const accessToken = await getDataFromFile('accessToken');
+//             originalRequest.headers.Authorization = accessToken;
+
+//             currentRetry = 0;
+//             return mongoServiceInstance(originalRequest);
+//         }
+//     } catch (error) {
+//         console.log('Error refreshing token:');
+//         await deleteTokensFromFile();
+//         // Очищаем информацию о токене и выходим из системы
+//         // redirect или другие действия по обработке ошибки 401
+//         // ...
+//         return;
+//     } finally {
+//         mutex.release();
+//         return result;
+//     }
+// };
+
+/**
+ * @param -
+ * @returns promise AxiosResponse<any>
+ * @description reset refresh token in db and get new credentials
+ */
+export async function refreshTokens(): Promise<AxiosResponse<any> | undefined> {
+    try {
+        const tokensHealth = await checkTokensHealthFromFile();
+        if (!tokensHealth) {
+            throw new Error();
+        } else {
+            const refreshToken = await getDataFromFile('refreshToken');
+            const result: AxiosResponse = await mongoServiceInstance.put(
+                '/refresh-tokens',
+                {
+                    refreshToken: refreshToken,
+                }
+            );
+
+            await addCredentialsToFile(result);
+            await setRefreshTokenToFile(result);
+
+            consola.success({
+                message: `Tokens refreshed`,
+            });
+
+            return result;
+        }
+    } catch (error: any) {
+        console.log('Unable to refresh tokens: ', error);
+
+        return Promise.reject(error);
+    }
+}
 
 export function getUsers() {
     mongoServiceInstance.get('/get-users').then((res) => console.log(res.data));
@@ -18,63 +169,71 @@ export async function loginUserToMongoService(
     username: string,
     password: string
 ) {
-    const result: AxiosResponse = await mongoServiceInstance.post(
-        '/login-user',
-        {
-            // username: 'evgesha1',
-            // password: 'SLoqwnxz1',
-            username,
-            password,
+    try {
+        const result: AxiosResponse = await mongoServiceInstance.post(
+            '/login-user',
+            {
+                username,
+                password,
+            }
+        );
+        if (result && result.status === 200 && result.data) {
+            await addCredentialsToFile(result);
+            await setRefreshTokenToFile(result);
         }
-    );
-    return result;
+
+        return result;
+    } catch (error) {
+        return Promise.reject(error);
+    }
 }
-// :
+
 export async function getCoinStrategyFromDb(
     coin: string,
     userCredentials: AxiosResponse<any>
-): Promise<ISetOrdersStepsToMongo | undefined> {
+): Promise<IBuyOrdersStepsToGrid[] | undefined> {
     try {
-        // console.log(isLoggedIn);
-
         const strategy = await mongoServiceInstance.get('/get-coin-strategy', {
             params: {
                 id: userCredentials.data.userId,
                 coin,
             },
             headers: {
-                Authorization: userCredentials.data.accessToken,
+                Authorization: await getAccessToken(),
             },
         });
 
-        const strategyArray = Object.keys(strategy.data)
+        const strategyArray: IBuyOrdersStepsToGrid[] = Object.keys(
+            strategy.data
+        )
             .filter((key) => Number.isInteger(parseInt(key)))
             .map((key) => ({ step: parseInt(key), ...strategy.data[key] }));
 
-        const result = {
+        const result: IStrategyMongoResult = {
             strategy: strategyArray,
             coin: strategy.data.coin,
-            message: strategy.data.message,
-            status: strategy.data.status,
         };
 
         consola.success({
-            message: 'Strategy found',
-            // badge: true,
+            message: `Strategy found`,
         });
+
+        // await setStrategyToFile(result.strategy, result.coin);
+
         return result.strategy;
     } catch (error: any) {
-        consola.error({
-            message: 'Strategy not found',
-            badge: false,
-        });
+        // consola.error({
+        //     message: `Strategy not found`,
+        //     badge: false,
+        // });
+
         return;
     }
 }
 
 export async function setCoinStrategy(
     strategy: ISetOrdersStepsToMongo,
-    coin: string,
+    coin: verifiedSymbols,
     userCredentials: AxiosResponse<any>
 ) {
     try {
@@ -87,7 +246,7 @@ export async function setCoinStrategy(
                     coin,
                 },
                 headers: {
-                    Authorization: userCredentials.data.accessToken,
+                    Authorization: await getAccessToken(),
                 },
             }
         );
@@ -104,7 +263,7 @@ export async function setCoinStrategy(
 }
 
 export async function deleteCoinStrategy(
-    coin: string,
+    coin: verifiedSymbols,
     userCredentials: AxiosResponse<any>
 ) {
     try {
@@ -116,7 +275,7 @@ export async function deleteCoinStrategy(
                     coin,
                 },
                 headers: {
-                    Authorization: userCredentials.data.accessToken,
+                    Authorization: await getAccessToken(),
                 },
             }
         );
@@ -127,6 +286,7 @@ export async function deleteCoinStrategy(
             message: 'Strategy was deleted',
             // badge: true,
         });
+
         return result;
     } catch (error: any) {
         consola.error({
@@ -138,7 +298,7 @@ export async function deleteCoinStrategy(
 }
 
 export async function getCurrentStep(
-    coin: string,
+    coin: verifiedSymbols,
     userCredentials: AxiosResponse<any>
 ): Promise<any | undefined> {
     try {
@@ -148,7 +308,7 @@ export async function getCurrentStep(
                 coin,
             },
             headers: {
-                Authorization: userCredentials.data.accessToken,
+                Authorization: await getAccessToken(),
             },
         });
         if (!result || !result.data) {
@@ -162,16 +322,16 @@ export async function getCurrentStep(
 
         return result.data.step;
     } catch (error: any) {
-        consola.error({
-            message: 'Step not found',
-            badge: false,
-        });
+        // consola.error({
+        //     message: 'Step not found',
+        //     badge: false,
+        // });
         return;
     }
 }
 
 export async function setCurrentStep(
-    coin: string,
+    coin: verifiedSymbols,
     step: number,
     userCredentials: AxiosResponse<any>
 ): Promise<any | undefined> {
@@ -186,7 +346,7 @@ export async function setCurrentStep(
                     step,
                 },
                 headers: {
-                    Authorization: userCredentials.data.accessToken,
+                    Authorization: await getAccessToken(),
                 },
             }
         );
@@ -203,15 +363,16 @@ export async function setCurrentStep(
         return result;
     } catch (error: any) {
         consola.error({
-            message: `Unable to set step: ${error.response?.data.message}`,
+            message: `Unable to set step: ${error.response?.status}`,
             badge: false,
         });
-        return;
+
+        return error.response;
     }
 }
 
 export async function deleteCurrentStep(
-    coin: string,
+    coin: verifiedSymbols,
     userCredentials: AxiosResponse<any>
 ): Promise<any | undefined> {
     try {
@@ -223,17 +384,18 @@ export async function deleteCurrentStep(
                     coin,
                 },
                 headers: {
-                    Authorization: userCredentials.data.accessToken,
+                    Authorization: await getAccessToken(),
                 },
             }
         );
 
-        if (result) {
+        if (result && result.data) {
             consola.info({
                 message: 'Current step was deleted',
                 // badge: true,
             });
         }
+        // console.log(result);
         return result;
     } catch (error: any) {
         consola.error({

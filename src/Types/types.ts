@@ -154,3 +154,13 @@ export interface IStep {
         coin: string;
     };
 }
+
+export interface IStrategyMongoResult {
+    strategy: IBuyOrdersStepsToGrid[];
+    coin: verifiedSymbols;
+}
+
+export interface IUserCredentials {
+    username: string;
+    password: string;
+}

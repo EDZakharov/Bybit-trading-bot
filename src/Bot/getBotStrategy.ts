@@ -1,25 +1,27 @@
 import consola from 'consola';
 import { findAndVerifySymbol } from '../Market/getVerifiedSymbols.js';
 import { generateBotStrategy } from '../Strategies/DCA.js';
-import { IBuyOrdersStepsToGrid } from '../Types/types.js';
+import { IBuyOrdersStepsToGrid, verifiedSymbols } from '../Types/types.js';
 import { botConfig } from './botConfig.js';
+import { setStrategyToFile } from './strategies.js';
 
-const generatedStrategy = generateBotStrategy(botConfig);
+const generatedBotStrategy = generateBotStrategy(botConfig);
 
-export const getBotStrategy = async function (
-    symbol: string
-): Promise<Array<IBuyOrdersStepsToGrid> | undefined> {
+export const generateStrategy = async function (
+    symbol: verifiedSymbols
+): Promise<IBuyOrdersStepsToGrid[] | null> {
     const validatedSymbol = findAndVerifySymbol(symbol);
     if (!validatedSymbol) {
         console.error(`request failed: bad symbol ${symbol}`);
-        return;
+        return null;
     }
-    const result: Array<IBuyOrdersStepsToGrid> = await generatedStrategy(
+    const strategy: Array<IBuyOrdersStepsToGrid> = await generatedBotStrategy(
         symbol
     );
     consola.info({
         message: `generating strategy to symbol ${symbol} ... `,
         // badge: true,
     });
-    return result;
+    await setStrategyToFile(strategy, symbol);
+    return strategy;
 };

@@ -2,20 +2,25 @@ import { consola } from 'consola';
 import { loginUserToMongoService } from './Api/api.js';
 import { editBotConfig } from './Bot/botConfig.js';
 import { trade } from './Bot/trade.js';
-import { AxiosResponse, verifiedSymbols } from './Types/types.js';
+import {
+    AxiosResponse,
+    IUserCredentials,
+    verifiedSymbols,
+} from './Types/types.js';
 import { sleep } from './Utils/sleep.js';
-
-interface IUserCredentials {
-    username: string;
-    password: string;
-}
 
 async function startBot(
     symbols: Array<verifiedSymbols>,
     editOptions: any,
     userCredentials: IUserCredentials
 ) {
-    //TODO
+    if (!symbols || symbols.length === 0) {
+        consola.error({
+            message: 'Missing symbols',
+        });
+        return;
+    }
+
     if (editOptions) {
         editBotConfig.setInsuranceOrderSteps(editOptions.insuranceOrderSteps);
         editBotConfig.setTargetProfitPercent(editOptions.targetProfitPercent);
@@ -27,8 +32,8 @@ async function startBot(
     const isAuth = await loginUserToMongoService(
         userCredentials.username,
         userCredentials.password
-    ).catch(async (err) => {
-        if (err.code === 'ECONNREFUSED') {
+    ).catch(async (error) => {
+        if (error.code === 'ECONNREFUSED') {
             consola.error({
                 message: 'Connection to Mongo-service failed. Retrying ... ',
             });
@@ -37,7 +42,7 @@ async function startBot(
             startBot(symbols, editOptions, userCredentials);
         } else {
             consola.error({
-                message: err,
+                message: error,
             });
         }
         return;
@@ -57,21 +62,6 @@ async function startBot(
     }
 }
 
-// getCoinStrategy();
-// 'KASUSDT',"BTCUSDT","XRPUSDT","UNIUSDT","DOGEUSDT","SOLUSDT","TWTUSDT","RVNUSDT","MATICUSDT",
-startBot(
-    [
-        'BTCUSDT',
-        // 'XRPUSDT',
-        // 'KASUSDT',
-    ],
-    {
-        insuranceOrderPriceDeviationPercent: 0.1,
-        targetProfitPercent: 0.1,
-    },
-    { username: 'evgesha1', password: 'SLoqwnxz1' }
-);
-
 async function loop(
     coinName: verifiedSymbols,
     length: number,
@@ -84,3 +74,16 @@ async function loop(
               badge: true,
           });
 }
+
+startBot(
+    [
+        'BTCUSDT',
+        // 'XRPUSDT',
+        // 'KASUSDT',
+    ],
+    {
+        insuranceOrderPriceDeviationPercent: 0.1,
+        targetProfitPercent: 0.1,
+    },
+    { username: 'evgesha1', password: 'SLoqwnxz1' }
+);
