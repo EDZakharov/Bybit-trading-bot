@@ -42,6 +42,9 @@ export async function trade(
     let currentStep = 0;
     const stepFromDb = await getCurrentStep(symbol, userCredentials);
 
+    const isAuth = await checkAuth();
+    if (!isAuth) return false;
+
     if (strategyFromDb && strategyFromDb.length !== 0) {
         await setStrategyToFile(strategyFromDb, symbol);
         if (!stepFromDb && stepFromDb !== 0) {
@@ -134,6 +137,7 @@ export async function trade(
         await deleteCoinStrategy(symbol, userCredentials);
         return true;
     }
+
     console.table(filteredStrategy);
 
     NEXT_STEP: for (order of filteredStrategy) {

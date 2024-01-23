@@ -63,9 +63,9 @@ mongoServiceInstance.interceptors.response.use(
 
             try {
                 if (currentRetry > maxRetries) {
-                    throw new Error('123');
+                    throw new Error();
                 }
-
+                console.log('Current retry: ', currentRetry);
                 await sleep(2000);
                 currentRetry += 1;
                 await refreshTokens();
@@ -155,7 +155,7 @@ export async function refreshTokens(): Promise<AxiosResponse<any> | undefined> {
             return result;
         }
     } catch (error: any) {
-        console.log('Unable to refresh tokens: ', error);
+        console.log('Unable to refresh tokens');
 
         return Promise.reject(error);
     }
