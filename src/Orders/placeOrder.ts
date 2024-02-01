@@ -1,7 +1,6 @@
-import { OrderResultV5 } from 'bybit-api/lib/types/response/v5-trade.js';
-import { APIResponseV3WithTime } from 'bybit-api/lib/types/shared.js';
 import consola from 'consola';
 import { getBalance } from '../Account/getBalance.js';
+import { placeBuyOrderSpot, placeSellOrderSpot } from '../Api/api.js';
 import { getFeeRate } from '../Market/getFeeRate.js';
 import { IPlaceOrder } from '../Types/types.js';
 import { retry } from '../Utils/retry.js';
@@ -17,7 +16,8 @@ export const placeOrder = async ({
     qty,
     price,
     orderId,
-}: IPlaceOrder): Promise<APIResponseV3WithTime<OrderResultV5> | undefined> => {
+    userCredentials,
+}: IPlaceOrder) => {
     if (!symbolChecker(symbol)) {
         consola.error({
             message: `request failed: undefined coin - ${symbol}`,
@@ -59,6 +59,13 @@ export const placeOrder = async ({
             }
             qty = calculateQty(qty, basePrecision);
             if (+instrumentMinQty <= qty) {
+                data = await placeSellOrderSpot(
+                    symbol,
+                    qty.toString(),
+                    price.toString(),
+                    userCredentials
+                );
+
                 // data = await restClient.submitOrder({
                 //     category: 'spot',
                 //     orderType: 'Limit',
@@ -68,17 +75,19 @@ export const placeOrder = async ({
                 //     price: `${price}`,
                 // });
                 // console.log(data);
-                // return data;
+                return data;
 
                 // TEST
 
-                return {
-                    //@ts-ignore
-                    result: {
-                        orderId: '123',
-                    },
-                };
+                // return {
+                //     //@ts-ignore
+                //     result: {
+                //         orderId: '123',
+                //     },
+                // };
             } else {
+                console.log(qty);
+
                 showError(instrumentMinQty, symbol, qty);
                 return;
             }
@@ -93,15 +102,20 @@ export const placeOrder = async ({
                 //     qty: `${qty}`,
                 // });
                 // console.log(data);
-                // return data;
 
+                data = await placeBuyOrderSpot(
+                    symbol,
+                    qty.toString(),
+                    userCredentials
+                );
+                return data;
                 // TEST
-                return {
-                    //@ts-ignore
-                    result: {
-                        orderId: '123',
-                    },
-                };
+                // return {
+                //     //@ts-ignore
+                //     result: {
+                //         orderId: '123',
+                //     },
+                // };
             } else {
                 showError(instrumentMinQty, symbol, qty);
                 return;

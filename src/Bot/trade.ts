@@ -1,6 +1,7 @@
 import consola from 'consola';
 import { getBalance } from '../Account/getBalance.js';
 import {
+    deleteAllCoinOrdersSpot,
     deleteCoinStrategy,
     deleteCurrentStep,
     getCoinStrategyFromDb,
@@ -139,7 +140,10 @@ export async function trade(
     }
 
     console.table(filteredStrategy);
-
+    let onPosition: boolean = false;
+    let onTakeProfit: boolean = false;
+    let buyOrderId: string = '';
+    let sellOrderId: string = '';
     NEXT_STEP: for (order of filteredStrategy) {
         const isAuth = await checkAuth();
         if (!isAuth) return false;
@@ -152,11 +156,9 @@ export async function trade(
         await setCurrentStep(symbol, order.step, userCredentials);
 
         // console.table(order);
-        let buyOrderId: string = '';
-        let sellOrderId: string = '';
+
         let currentPrice: number = 0;
-        let onPosition: boolean = false;
-        let onTakeProfit: boolean = false;
+
         let nextInsurancePriceToStep = allOrdersPriceToStep[order.step + 1];
         // let currInsurancePriceToStep = allOrdersPriceToStep[order.step];
         // console.log(currInsurancePriceToStep);
@@ -257,6 +259,7 @@ export async function trade(
                     qty: orderBasePairVolume,
                     price: currentPrice,
                     orderId: buyOrderId,
+                    userCredentials,
                 });
 
                 if (!buyOrder) {
@@ -267,12 +270,14 @@ export async function trade(
                     });
                     continue NEXT_LOOP;
                 }
+
                 buyOrderId = buyOrder.result.orderId;
             }
 
             //CANCEL TP ORDER & NEXT STEP
             if (onPosition && currentPrice < nextInsurancePriceToStep) {
                 await retry(cancelOrder, symbol, sellOrderId);
+                await deleteAllCoinOrdersSpot(symbol, userCredentials);
                 onPosition = false;
                 onTakeProfit = false;
                 buyOrderId = '';
@@ -291,7 +296,8 @@ export async function trade(
                     symbol,
                     summarizedOrderSecondaryPairVolume,
                     orderTargetPrice,
-                    buyOrderId
+                    buyOrderId,
+                    userCredentials
                 );
 
                 //SET TP ORDER ID
@@ -323,6 +329,7 @@ export async function trade(
                     price: currentPrice,
                     profit,
                 });
+                await deleteAllCoinOrdersSpot(symbol, userCredentials);
                 await deleteCurrentStep(symbol, userCredentials);
                 await deleteCoinStrategy(symbol, userCredentials);
                 finish = true;
@@ -342,14 +349,18 @@ async function placeTakeProfitOrder(
     symbol: string,
     summarizedOrderSecondaryPairVolume: number,
     orderTargetPrice: number,
-    orderId: string
+    orderId: string,
+    userCredentials: AxiosResponse<any>
 ) {
+    console.log(summarizedOrderSecondaryPairVolume);
+
     return await placeOrder({
         side: 'Sell',
         symbol,
         qty: summarizedOrderSecondaryPairVolume,
         price: orderTargetPrice,
         orderId,
+        userCredentials,
     });
 }
 

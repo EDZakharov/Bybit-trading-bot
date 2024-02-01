@@ -66,6 +66,7 @@ export interface IPlaceOrder {
     marketUnit?: string;
     orderId: string;
     side: 'Buy' | 'Sell';
+    userCredentials: any;
 }
 
 export interface IGetBalanceResult {

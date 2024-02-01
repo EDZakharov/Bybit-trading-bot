@@ -15,15 +15,14 @@ import {
     setRefreshTokenToFile,
 } from './auth';
 
-import { Mutex } from 'async-mutex';
 import { sleep } from '../Utils/sleep';
 import { setAuthStatusToFile } from './checkauth';
 
-const mutex = new Mutex();
+// const mutex = new Mutex();
 const baseUrl = 'localhost:5000';
 const mongoServiceInstance = axios.create({
     baseURL: `http://${baseUrl}/api/users`,
-    timeout: 1000,
+    timeout: 5000,
     headers: { 'Content-Type': 'application/json' },
 });
 const getAccessToken = async () => {
@@ -51,30 +50,30 @@ mongoServiceInstance.interceptors.response.use(
         return response;
     },
     async (error: AxiosError) => {
-        // console.log(error.response);
-
         if (error.response && error.response.status === 401 && error.config) {
-            // try {
-            //     const retryGetTokens = await refreshTokens();
-            // } catch (error) {}
-            // const release = await mutex.acquire();
-            // return unauthorizedResponse(error);
-            // console.log('Unauthorized');
-
             try {
-                if (currentRetry > maxRetries) {
+                if (currentRetry >= maxRetries) {
                     throw new Error();
                 }
-                console.log('Current retry: ', currentRetry);
-                await sleep(2000);
+
                 currentRetry += 1;
+                consola.warn({
+                    message: `Refreshing tokens retries count: ${currentRetry}`,
+                    badge: true,
+                });
+
+                await sleep(2000);
                 await refreshTokens();
+
                 const originalRequest = error.config;
                 const accessToken = await getDataFromFile('accessToken');
+
                 originalRequest.headers.Authorization = accessToken;
+
                 return mongoServiceInstance(originalRequest);
             } catch (error) {
                 console.log('Error refreshing token');
+
                 await setAuthStatusToFile(false);
                 await deleteTokensFromFile();
             }
@@ -91,40 +90,80 @@ mongoServiceInstance.interceptors.response.use(
     }
 );
 
-// const unauthorizedResponse = async (error: AxiosError) => {
-//     await sleep(5000);
+export async function placeBuyOrderSpot(
+    symbol: string,
+    qty: string,
+    userCredentials: AxiosResponse<any>
+) {
+    try {
+        const result: AxiosResponse = await mongoServiceInstance.post(
+            '/place-buy-order-spot-bybit',
+            {
+                symbol,
+                qty,
+            },
+            {
+                params: {
+                    id: userCredentials.data.userId,
+                },
+            }
+        );
+        console.log(result.data);
+        return result.data;
+    } catch (error) {
+        return Promise.reject(error);
+    }
+}
 
-//     let result: AxiosResponse<any> | undefined;
-//     try {
-//         currentRetry += 1;
-//         const currentToken = await getDataFromFile('refreshToken');
-//         const originalRequest = error.config;
-//         consola.error({
-//             message: 'Unauthorized',
-//         });
+export async function placeSellOrderSpot(
+    symbol: string,
+    qty: string,
+    price: string,
+    userCredentials: AxiosResponse<any>
+) {
+    try {
+        const result: AxiosResponse = await mongoServiceInstance.post(
+            '/place-sell-order-spot-bybit',
+            {
+                symbol,
+                qty,
+                price,
+            },
+            {
+                params: {
+                    id: userCredentials.data.userId,
+                },
+            }
+        );
+        console.log(result.data);
 
-//         result = await refreshTokens(currentToken);
-//         // console.log(result.status);
+        return result.data;
+    } catch (error) {
+        return Promise.reject(error);
+    }
+}
 
-//         if (result && result.status === 200 && originalRequest) {
-//             const accessToken = await getDataFromFile('accessToken');
-//             originalRequest.headers.Authorization = accessToken;
+export async function deleteAllCoinOrdersSpot(
+    symbol: string,
+    userCredentials: AxiosResponse<any>
+) {
+    try {
+        const result: AxiosResponse = await mongoServiceInstance.delete(
+            '/delete-all-coin-orders',
+            {
+                params: {
+                    id: userCredentials.data.userId,
+                    coin: symbol,
+                },
+            }
+        );
+        console.log(result.data);
 
-//             currentRetry = 0;
-//             return mongoServiceInstance(originalRequest);
-//         }
-//     } catch (error) {
-//         console.log('Error refreshing token:');
-//         await deleteTokensFromFile();
-//         // Очищаем информацию о токене и выходим из системы
-//         // redirect или другие действия по обработке ошибки 401
-//         // ...
-//         return;
-//     } finally {
-//         mutex.release();
-//         return result;
-//     }
-// };
+        return result.data;
+    } catch (error) {
+        return Promise.reject(error);
+    }
+}
 
 /**
  * @param -
@@ -148,8 +187,9 @@ export async function refreshTokens(): Promise<AxiosResponse<any> | undefined> {
             await addCredentialsToFile(result);
             await setRefreshTokenToFile(result);
 
-            consola.success({
+            consola.info({
                 message: `Tokens refreshed`,
+                badge: true,
             });
 
             return result;
@@ -254,11 +294,18 @@ export async function setCoinStrategy(
             message: 'Strategy set to db',
             badge: true,
         });
-    } catch (error) {
-        consola.error({
-            message: error,
-            badge: true,
-        });
+    } catch (error: any) {
+        if (error && error.response.data.message) {
+            consola.error({
+                message: error.response.data.message,
+                badge: true,
+            });
+        } else {
+            consola.error({
+                message: error,
+                badge: true,
+            });
+        }
     }
 }
 
